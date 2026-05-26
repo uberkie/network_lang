@@ -1,0 +1,35 @@
+# Read operations
+network.neighbors.list(target="tower-router-01")
+network.interfaces.list(target="core-sw-01")
+network.interfaces.get(target="core-sw-01", name="ether1")
+network.routes.list(target="branch-router-02", table="main")
+
+# Config and state operations
+network.config.backup(target="edge-01")
+network.system.identity.get(target="ap-south-03")
+network.wireless.clients.list(target="ap-south-03")
+
+# Write operations
+network.firewall.rules.create(
+  target="edge-01",
+  rule={
+    chain="forward",
+    action="drop",
+    src="10.20.30.0/24",
+    dst="0.0.0.0/0",
+    comment="Block guest subnet egress"
+  }
+)
+
+network.interfaces.disable(target="core-sw-01", name="ether24")
+
+# Validation before mutation
+network.firewall.rules.validate(
+  target="edge-01",
+  rule={
+    chain="forward",
+    action="accept",
+    src="10.10.0.0/16",
+    dst="10.20.0.0/16"
+  }
+)
