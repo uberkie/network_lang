@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+from network_lang import build_operation, network, validate_operation
 from network_lang.parser import ParseError, parse_file, parse_text
 
 
@@ -45,6 +46,40 @@ class ParserTests(unittest.TestCase):
             parse_text("network.interfaces.get target=\"core-sw-01\"")
 
 
+class LibraryApiTests(unittest.TestCase):
+    def test_fluent_builder_creates_operation(self):
+        operation = network.interfaces.get(target="core-sw-01", name="ether1")
+
+        self.assertEqual(operation.name, "network.interfaces.get")
+        self.assertEqual(operation.resource_path, ("interfaces",))
+        self.assertEqual(operation.action, "get")
+        self.assertEqual(operation.params["name"], "ether1")
+        self.assertEqual(validate_operation(operation), [])
+
+    def test_fluent_builder_supports_nested_resources(self):
+        operation = network.system.identity.get(target="ap-south-03")
+
+        self.assertEqual(operation.name, "network.system.identity.get")
+        self.assertEqual(operation.resource_path, ("system", "identity"))
+
+    def test_fluent_builder_requires_resource_and_action(self):
+        with self.assertRaises(ValueError):
+            network.interfaces(target="core-sw-01")
+
+    def test_build_operation_from_dotted_name(self):
+        operation = build_operation(
+            "network.firewall.rules.create",
+            target="edge-01",
+            rule={"action": "drop"},
+        )
+
+        self.assertEqual(operation.name, "network.firewall.rules.create")
+        self.assertEqual(operation.resource_path, ("firewall", "rules"))
+
+    def test_build_operation_rejects_bad_name(self):
+        with self.assertRaises(ValueError):
+            build_operation("network.interfaces")
+
+
 if __name__ == "__main__":
     unittest.main()
-

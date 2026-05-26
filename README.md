@@ -1,9 +1,9 @@
 # Unified Network Syntax
 
 This repository is a starting point for an abstracted network operation syntax:
-a vendor-neutral intent layer that can map the same operator action onto
-different device interfaces such as SSH, REST, NETCONF, RESTCONF, SNMP,
-RouterOS API, vendor SDKs, and parser fallbacks.
+a library-first, vendor-neutral intent layer that can map the same operator
+action onto different device interfaces such as SSH, REST, NETCONF, RESTCONF,
+SNMP, RouterOS API, vendor SDKs, and parser fallbacks.
 
 The central idea is simple:
 
@@ -19,6 +19,9 @@ operator intent
 The syntax should not pretend that every device supports the same behavior.
 It should expose one stable operation model while being honest about device
 capabilities, transport limits, permissions, and partial results.
+
+The primary interface is the Python library. Text files and CLI commands are
+optional ways to load, validate, and inspect the same operation model.
 
 ## Design Principles
 
@@ -50,6 +53,31 @@ network.config.backup(target="ap-south-03")
 ```
 
 ## Quick Start
+
+Use the library directly:
+
+```python
+from network_lang import network, parse_text, validate_operation
+
+operation = network.interfaces.get(target="core-sw-01", name="ether1")
+diagnostics = validate_operation(operation)
+
+operations = parse_text('network.neighbors.list(target="tower-router-01")')
+```
+
+Build an operation from a dotted API-style name when dynamic dispatch is easier:
+
+```python
+from network_lang import build_operation
+
+operation = build_operation(
+    "network.firewall.rules.create",
+    target="edge-01",
+    rule={"chain": "forward", "action": "drop"},
+)
+```
+
+The CLI is a thin wrapper around the library and is useful for local checks.
 
 Validate the example operation file:
 

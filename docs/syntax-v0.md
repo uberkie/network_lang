@@ -12,10 +12,14 @@ interface expresses control differently.
 
 Unified Network Syntax normalizes intent above the transport layer.
 
+The reference implementation treats the syntax as a library API first. CLI
+commands are useful for validation and inspection, but execution does not
+depend on a shell entry point.
+
 ## Architecture
 
 ```text
-Intent layer
+Application/library call or .uns text
   -> operation parser
   -> capability resolver
   -> policy guard
@@ -29,6 +33,14 @@ Intent layer
 
 ```text
 network.<resource-path>.<action>(target="device-or-selector", params...)
+```
+
+The same operation can be built from Python:
+
+```python
+from network_lang import network
+
+operation = network.interfaces.get(target="core-sw-01", name="ether1")
 ```
 
 Where:
@@ -81,9 +93,9 @@ use `key=value` syntax.
 
 ## Reference Parser
 
-This repository includes a small reference parser for the draft syntax. It is
-not an executor and has no device authority; it only parses and validates the
-operation shape.
+This repository includes a small reference parser and library API for the draft
+syntax. It is not an executor and has no device authority; it only builds,
+parses, and validates the operation shape.
 
 ```sh
 python3 -m network_lang validate examples/operations.uns
