@@ -12,6 +12,16 @@ from .model import Operation, SourceSpan
 from .parser import ParseError, parse_file, parse_text
 from .reconcile import DeviceMatch, DeviceRecord, ReconciliationReport, reconcile_devices
 from .result import OperationResult, ResultError
+from .targets import (
+    TargetDevice,
+    TargetResolutionError,
+    collect_topology,
+    default_inventory_path,
+    load_inventory,
+    preflight_operation,
+    resolve_target,
+    target_device,
+)
 from .topology import (
     AttachmentMatch,
     AttachmentMove,
@@ -45,15 +55,23 @@ __all__ = [
     "ParseError",
     "ResultError",
     "SourceSpan",
+    "TargetDevice",
+    "TargetResolutionError",
     "build_operation",
+    "collect_topology",
+    "default_inventory_path",
+    "load_inventory",
     "network",
     "parse_file",
     "parse_text",
     "preflight_interface_operation",
+    "preflight_operation",
     "ReconciliationReport",
     "reconcile_attachments",
     "reconcile_devices",
+    "resolve_target",
     "resolve_flow_target",
+    "target_device",
     "TopologyPreflightReport",
     "validate_operation",
     "validate_operations",

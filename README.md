@@ -117,37 +117,22 @@ if result.ok:
 Collect a RouterOS topology snapshot and preflight a risky interface operation:
 
 ```python
-from network_lang import build_operation, preflight_interface_operation
-from network_lang.adapters import (
-    RouterOSExecutor,
-    RouterOSRestTransport,
-    collect_routeros_topology,
-)
-from network_lang.adapters.ros import Ros
+from network_lang import target_device
 
-ros = Ros("https://192.168.88.1/", "admin", "password", secure=False)
-executor = RouterOSExecutor(RouterOSRestTransport(ros))
+device = target_device("edge-01")
 
-snapshot_result = collect_routeros_topology(executor, "edge-01")
+snapshot_result = device.collect_topology()
 if not snapshot_result.ok:
     raise RuntimeError(snapshot_result.error)
 
 snapshot = snapshot_result.data
 
-operation = build_operation(
+preflight = device.preflight(
     "network.interfaces.disable",
-    target="edge-01",
     name="ether2",
 )
 
-preflight = preflight_interface_operation(
-    operation,
-    expected=[],
-    observed=snapshot.attachments,
-    interface_states=snapshot.interface_states,
-)
-
-print(preflight.risks)
+print(preflight.data.risks)
 ```
 
 Compare source-of-truth inventory with live observations:

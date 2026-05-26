@@ -1,20 +1,12 @@
-from network_lang import build_operation, preflight_interface_operation
-from network_lang.adapters import (
-    RouterOSExecutor,
-    RouterOSRestTransport,
-    collect_routeros_topology,
-)
-from network_lang.adapters.ros import Ros
+from network_lang import target_device
 
 
-TARGET = "edge-01"
+TARGET = "https://192.168.4.1/"
 PREFLIGHT_INTERFACE = "veth1"
 
+device = target_device(TARGET)
 
-ros = Ros("https://192.168.4.1/", "admin", "admin", secure=False)
-executor = RouterOSExecutor(RouterOSRestTransport(ros))
-
-snapshot_result = collect_routeros_topology(executor, TARGET)
+snapshot_result = device.collect_topology()
 if not snapshot_result.ok:
     print(snapshot_result.to_dict())
     raise SystemExit(1)
@@ -29,16 +21,9 @@ print("\ninterface states")
 for state in snapshot.interface_states:
     print(state)
 
-operation = build_operation(
+preflight = device.preflight(
     "network.interfaces.disable",
-    target=TARGET,
     name=PREFLIGHT_INTERFACE,
-)
-preflight = preflight_interface_operation(
-    operation,
-    expected=[],
-    observed=snapshot.attachments,
-    interface_states=snapshot.interface_states,
 )
 
 print("\npreflight")

@@ -1,0 +1,51 @@
+[
+    {
+        "id": "1",
+        "name": "edge-01",
+        "url": "https://192.168.4.1/",
+        "username": "admin",
+        "password": "admin",
+        "groups": ["edge-routers"],
+        "interfaces": [
+            {
+                "name": "veth1",
+                "ip_address": "192.168.4.1/24"  
+
+            },
+            {
+                "name": "veth2",
+                "ip_address": "192.168.4.2/24" 
+            }             
+        ]
+    },
+    {
+        "id": "2",
+        "name": "edge-02",
+        "url": "https://192.168.4.1/",
+        "username": "admin",
+        "password": "admin",
+        "groups": ["edge-routers"],
+        "interfaces": [
+            {
+                "name": "veth1",
+                "ip_address": "192.168.4.1/24"  
+
+            }
+        ]
+    },
+    {
+        "id": "3",
+        "name": "client-01",
+        "url": "https://192.168.4.1/",
+        "username": "admin",
+        "password": "admin",
+        "groups": ["CPE-devices"],
+        "interfaces": [
+            {
+                "name": "veth1",
+                "ip_address": "192.168.4.1/24"  
+
+            }
+        ]
+    }
+]
