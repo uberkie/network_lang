@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "network-lang"
+version = "0.1.0"
+description = "A small parser and validator for Unified Network Syntax drafts."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Unified Network Syntax contributors" }
+]
+
+[project.scripts]
+uns = "network_lang.cli:main"
+

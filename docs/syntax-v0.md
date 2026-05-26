@@ -28,19 +28,19 @@ Intent layer
 ## Operation Format
 
 ```text
-network.<domain>.<resource>.<action>(target, params)
+network.<resource-path>.<action>(target="device-or-selector", params...)
 ```
 
 Where:
 
 - `network` is the root namespace.
-- `domain` is the operational area, such as `interfaces`, `neighbors`,
-  `routes`, `firewall`, `wireless`, `config`, or `system`.
-- `resource` is the thing being operated on.
+- `resource-path` is one or more dotted identifiers for the thing being
+  operated on, such as `interfaces`, `neighbors`, `firewall.rules`,
+  `wireless.clients`, `config`, or `system.identity`.
 - `action` is the requested operation.
-- `target` identifies a device, group, inventory selector, or connection
-  profile.
-- `params` contains typed input for the adapter.
+- `target` is a required keyword argument that identifies a device, group,
+  inventory selector, or connection profile.
+- Additional keyword arguments contain typed input for the adapter.
 
 ## Core Actions
 
@@ -54,14 +54,41 @@ update    modify a resource
 delete    remove a resource
 enable    enable an existing resource
 disable   disable an existing resource
+observe   run an active but non-mutating observation
 run       execute a bounded operational action
 backup    export or snapshot config/state
 diff      compare desired and actual state
 validate  check whether an operation could run
 ```
 
-CRUD is useful, but networks also need `observe`, `execute`, `validate`, and
+CRUD is useful, but networks also need `observe`, `run`, `validate`, and
 `backup` style operations.
+
+## Value Literals
+
+The reference parser currently accepts:
+
+```text
+"string" or 'string'
+123, -123, 12.3
+true, false, null
+[value, value]
+{ key=value, key=value }
+```
+
+Object keys are bare identifiers. Operation arguments and object fields both
+use `key=value` syntax.
+
+## Reference Parser
+
+This repository includes a small reference parser for the draft syntax. It is
+not an executor and has no device authority; it only parses and validates the
+operation shape.
+
+```sh
+python3 -m network_lang validate examples/operations.uns
+python3 -m network_lang parse examples/operations.uns
+```
 
 ## Capability States
 
@@ -167,4 +194,3 @@ secret     touches credentials, keys, or private config
 3. How much should the project reuse existing YANG models?
 4. Should the first prototype target one vendor first, such as MikroTik?
 5. Should adapters be local plugins, remote tools, or both?
-

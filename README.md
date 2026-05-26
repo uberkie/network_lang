@@ -33,21 +33,43 @@ capabilities, transport limits, permissions, and partial results.
 ## First Operation Shape
 
 ```text
-network.<domain>.<resource>.<action>(target, params)
+network.<resource-path>.<action>(target="device-or-selector", params...)
 ```
+
+`resource-path` is one or more dotted identifiers. This keeps simple resources
+and nested resources in the same model.
 
 Examples:
 
 ```text
 network.neighbors.list(target="tower-router-01")
-network.interfaces.read(target="core-sw-01", name="ether1")
+network.interfaces.get(target="core-sw-01", name="ether1")
 network.firewall.rules.create(target="edge-01", rule={...})
 network.routes.list(target="branch-router-02", table="main")
 network.config.backup(target="ap-south-03")
+```
+
+## Quick Start
+
+Validate the example operation file:
+
+```sh
+python3 -m network_lang validate examples/operations.uns
+```
+
+Print parsed operations as JSON:
+
+```sh
+python3 -m network_lang parse examples/operations.uns
+```
+
+Run the test suite:
+
+```sh
+python3 -m unittest discover -s tests
 ```
 
 ## Current Documents
 
 - [Syntax v0](docs/syntax-v0.md)
 - [Example operations](examples/operations.uns)
-
