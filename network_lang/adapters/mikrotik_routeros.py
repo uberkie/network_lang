@@ -191,7 +191,13 @@ def collect_routeros_topology(
     target: str,
     network_device: str | None = None,
 ) -> OperationResult:
-    """Collect read-only RouterOS topology observations into a single snapshot."""
+    """Collect read-only RouterOS topology observations into a single snapshot.
+
+    Args:
+        executor:
+        target:
+        network_device:
+    """
 
     operation = build_operation("network.topology.snapshot.observe", target=target)
     observed_device = network_device or target
@@ -246,7 +252,14 @@ def preflight_routeros_operation(
     expected: Iterable[AttachmentRecord | dict[str, Any]] = (),
     network_device: str | None = None,
 ) -> OperationResult:
-    """Collect RouterOS topology and preflight an operation against it."""
+    """Collect RouterOS topology and preflight an operation against it.
+
+    Args:
+        executor:
+        operation:
+        expected:
+        network_device:
+    """
 
     if not isinstance(operation.target, str) or not operation.target.strip():
         return _result_error(
@@ -305,6 +318,14 @@ def preflight_routeros_operation(
 def routeros_neighbors_to_devices(
     rows: list[dict[str, Any]] | tuple[dict[str, Any], ...],
 ) -> tuple[DeviceRecord, ...]:
+    """
+
+    Args:
+        rows:
+
+    Returns:
+
+    """
     return tuple(_neighbor_device(row) for row in rows)
 
 
@@ -312,6 +333,15 @@ def routeros_neighbors_to_attachments(
     rows: list[dict[str, Any]] | tuple[dict[str, Any], ...],
     network_device: str,
 ) -> tuple[AttachmentRecord, ...]:
+    """
+
+    Args:
+        rows:
+        network_device:
+
+    Returns:
+
+    """
     attachments = []
     for row in rows:
         interface = _neighbor_interface(row)
@@ -331,6 +361,14 @@ def routeros_neighbors_to_attachments(
 def routeros_arp_to_devices(
     rows: list[dict[str, Any]] | tuple[dict[str, Any], ...],
 ) -> tuple[DeviceRecord, ...]:
+    """
+
+    Args:
+        rows:
+
+    Returns:
+
+    """
     return tuple(_arp_device(row) for row in rows)
 
 
@@ -338,6 +376,15 @@ def routeros_arp_to_attachments(
     rows: list[dict[str, Any]] | tuple[dict[str, Any], ...],
     network_device: str,
 ) -> tuple[AttachmentRecord, ...]:
+    """
+
+    Args:
+        rows:
+        network_device:
+
+    Returns:
+
+    """
     attachments = []
     for row in rows:
         interface = _string(row.get("interface"))
@@ -358,6 +405,15 @@ def routeros_bridge_hosts_to_attachments(
     rows: list[dict[str, Any]] | tuple[dict[str, Any], ...],
     network_device: str,
 ) -> tuple[AttachmentRecord, ...]:
+    """
+
+    Args:
+        rows:
+        network_device:
+
+    Returns:
+
+    """
     attachments = []
     for row in rows:
         interface = _string(row.get("interface"))
@@ -383,6 +439,15 @@ def routeros_bridge_ports_to_interface_states(
     rows: list[dict[str, Any]] | tuple[dict[str, Any], ...],
     network_device: str,
 ) -> tuple[InterfaceStateRecord, ...]:
+    """
+
+    Args:
+        rows:
+        network_device:
+
+    Returns:
+
+    """
     states = []
     for row in rows:
         interface = _string(row.get("interface"))
@@ -436,7 +501,11 @@ class RouterOSPlan:
 
 
 def plan_routeros_operation(operation: Operation) -> RouterOSPlan:
-    """Translate a vendor-neutral operation into RouterOS REST API calls."""
+    """Translate a vendor-neutral operation into RouterOS REST API calls.
+
+    Args:
+        operation:
+    """
 
     if operation.name == "network.system.identity.get":
         return _get(operation, "/system/identity")
@@ -612,6 +681,16 @@ def _get(
     path: str,
     params: dict[str, Any] | None = None,
 ) -> RouterOSPlan:
+    """
+
+    Args:
+        operation:
+        path:
+        params:
+
+    Returns:
+
+    """
     return RouterOSPlan(
         operation=operation.name,
         capability="supported",
@@ -625,6 +704,17 @@ def _write(
     path: str,
     body: dict[str, Any],
 ) -> RouterOSPlan:
+    """
+
+    Args:
+        operation:
+        method:
+        path:
+        body:
+
+    Returns:
+
+    """
     return RouterOSPlan(
         operation=operation.name,
         capability="supported",
@@ -637,6 +727,16 @@ def _toggle_by_id_or_match(
     path: str,
     disabled: bool,
 ) -> RouterOSPlan:
+    """
+
+    Args:
+        operation:
+        path:
+        disabled:
+
+    Returns:
+
+    """
     resource_id = operation.params.get("id")
     if isinstance(resource_id, str) and resource_id:
         return _write(
@@ -677,6 +777,16 @@ def _update_by_id_or_match(
     path: str,
     body: dict[str, Any],
 ) -> RouterOSPlan:
+    """
+
+    Args:
+        operation:
+        path:
+        body:
+
+    Returns:
+
+    """
     resource_id = operation.params.get("id")
     if isinstance(resource_id, str) and resource_id:
         return _write(operation, "PATCH", f"{path}/{resource_id}", body)
@@ -705,6 +815,14 @@ def _update_by_id_or_match(
 
 
 def _filters(operation: Operation) -> dict[str, Any]:
+    """
+
+    Args:
+        operation:
+
+    Returns:
+
+    """
     match = operation.params.get("match", {})
     if isinstance(match, dict):
         return _translate_keys(match, {**ROUTE_KEY_MAP, **FIREWALL_RULE_KEY_MAP})
@@ -712,6 +830,15 @@ def _filters(operation: Operation) -> dict[str, Any]:
 
 
 def _body_map(operation: Operation, *keys: str) -> dict[str, Any]:
+    """
+
+    Args:
+        operation:
+        *keys:
+
+    Returns:
+
+    """
     for key in keys:
         value = operation.params.get(key)
         if isinstance(value, dict):
@@ -723,6 +850,15 @@ def _translate_keys(
     values: dict[str, Any],
     translation: dict[str, str],
 ) -> dict[str, Any]:
+    """
+
+    Args:
+        values:
+        translation:
+
+    Returns:
+
+    """
     return {
         translation.get(key, key.replace("_", "-")): value
         for key, value in values.items()
@@ -730,6 +866,15 @@ def _translate_keys(
 
 
 def _unsupported(operation: Operation, reason: str) -> RouterOSPlan:
+    """
+
+    Args:
+        operation:
+        reason:
+
+    Returns:
+
+    """
     return RouterOSPlan(
         operation=operation.name,
         capability="unsupported",
@@ -739,6 +884,14 @@ def _unsupported(operation: Operation, reason: str) -> RouterOSPlan:
 
 
 def _row_sequence(data: Any) -> tuple[dict[str, Any], ...]:
+    """
+
+    Args:
+        data:
+
+    Returns:
+
+    """
     if isinstance(data, dict):
         return (data,)
     if isinstance(data, (list, tuple)):
@@ -747,6 +900,15 @@ def _row_sequence(data: Any) -> tuple[dict[str, Any], ...]:
 
 
 def _operation_with_target(operation: Operation, target: str) -> Operation:
+    """
+
+    Args:
+        operation:
+        target:
+
+    Returns:
+
+    """
     return Operation(
         namespace=operation.namespace,
         resource_path=operation.resource_path,
@@ -761,6 +923,16 @@ def _composed_error(
     result: OperationResult,
     message: str,
 ) -> OperationResult:
+    """
+
+    Args:
+        operation:
+        result:
+        message:
+
+    Returns:
+
+    """
     source_error = result.error
     return OperationResult(
         ok=False,
@@ -779,6 +951,14 @@ def _composed_error(
 
 
 def _neighbor_device(row: dict[str, Any]) -> DeviceRecord:
+    """
+
+    Args:
+        row:
+
+    Returns:
+
+    """
     identity = _string(row.get("identity"))
     address = _string(row.get("address4") or row.get("address"))
     mac = _string(row.get("mac_address") or row.get("mac-address"))
@@ -797,6 +977,14 @@ def _neighbor_device(row: dict[str, Any]) -> DeviceRecord:
 
 
 def _neighbor_identifiers(row: dict[str, Any]) -> tuple[str, ...]:
+    """
+
+    Args:
+        row:
+
+    Returns:
+
+    """
     identifiers = []
     discovered_by = _string(row.get("discovered_by") or row.get("discovered-by"))
     identity = _string(row.get("identity"))
@@ -809,6 +997,14 @@ def _neighbor_identifiers(row: dict[str, Any]) -> tuple[str, ...]:
 
 
 def _neighbor_interface(row: dict[str, Any]) -> str | None:
+    """
+
+    Args:
+        row:
+
+    Returns:
+
+    """
     interface_name = _string(row.get("interface_name") or row.get("interface-name"))
     if interface_name and "/" in interface_name:
         return interface_name.rsplit("/", 1)[-1].strip()
@@ -820,6 +1016,14 @@ def _neighbor_interface(row: dict[str, Any]) -> str | None:
 
 
 def _arp_device(row: dict[str, Any]) -> DeviceRecord:
+    """
+
+    Args:
+        row:
+
+    Returns:
+
+    """
     host = _string(row.get("address"))
     mac = _string(row.get("mac_address") or row.get("mac-address"))
     return DeviceRecord(
@@ -831,6 +1035,14 @@ def _arp_device(row: dict[str, Any]) -> DeviceRecord:
 
 
 def _metadata(row: dict[str, Any]) -> dict[str, Any]:
+    """
+
+    Args:
+        row:
+
+    Returns:
+
+    """
     return {
         str(key).replace("-", "_").replace(".", ""): value
         for key, value in row.items()
@@ -839,12 +1051,28 @@ def _metadata(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def _string(value: Any) -> str | None:
+    """
+
+    Args:
+        value:
+
+    Returns:
+
+    """
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
 
 
 def _bool(value: Any) -> bool | None:
+    """
+
+    Args:
+        value:
+
+    Returns:
+
+    """
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -857,6 +1085,14 @@ def _bool(value: Any) -> bool | None:
 
 
 def _bridge_port_status_inactive(status: str | None) -> bool | None:
+    """
+
+    Args:
+        status:
+
+    Returns:
+
+    """
     if not status:
         return None
     normalized = status.strip().lower()
@@ -868,6 +1104,14 @@ def _bridge_port_status_inactive(status: str | None) -> bool | None:
 
 
 def _bridge_port_status_running(status: str | None) -> bool | None:
+    """
+
+    Args:
+        status:
+
+    Returns:
+
+    """
     if not status:
         return None
     normalized = status.strip().lower()
@@ -885,6 +1129,14 @@ class _LookupResult:
 
 
 def _extract_single_id(data: Any) -> _LookupResult:
+    """
+
+    Args:
+        data:
+
+    Returns:
+
+    """
     if isinstance(data, list):
         if not data:
             return _LookupResult(
@@ -909,6 +1161,14 @@ def _extract_single_id(data: Any) -> _LookupResult:
 
 
 def _resource_id(data: Any) -> str | None:
+    """
+
+    Args:
+        data:
+
+    Returns:
+
+    """
     if isinstance(data, dict):
         value = data.get("id") or data.get(".id")
         return value if isinstance(value, str) and value else None
@@ -924,6 +1184,19 @@ def _result_error(
     warnings: tuple[str, ...] = (),
     detail: Any = None,
 ) -> OperationResult:
+    """
+
+    Args:
+        operation:
+        capability:
+        code:
+        message:
+        warnings:
+        detail:
+
+    Returns:
+
+    """
     return OperationResult(
         ok=False,
         operation=operation.name,
@@ -936,6 +1209,14 @@ def _result_error(
 
 
 def _clean_routeros_data(data: Any) -> Any:
+    """
+
+    Args:
+        data:
+
+    Returns:
+
+    """
     if isinstance(data, list):
         return [_clean_routeros_data(value) for value in data]
     if isinstance(data, dict):

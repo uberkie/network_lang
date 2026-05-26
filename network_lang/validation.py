@@ -22,6 +22,14 @@ class Diagnostic:
 
 
 def validate_operations(operations: list[Operation]) -> list[Diagnostic]:
+    """
+
+    Args:
+        operations:
+
+    Returns:
+
+    """
     diagnostics: list[Diagnostic] = []
     for operation in operations:
         diagnostics.extend(validate_operation(operation))
@@ -29,6 +37,14 @@ def validate_operations(operations: list[Operation]) -> list[Diagnostic]:
 
 
 def validate_operation(operation: Operation) -> list[Diagnostic]:
+    """
+
+    Args:
+        operation:
+
+    Returns:
+
+    """
     diagnostics: list[Diagnostic] = []
 
     if operation.namespace != "network":

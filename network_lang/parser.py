@@ -41,6 +41,15 @@ def parse_file(path: str | Path) -> list[Operation]:
 
 
 def parse_text(text: str, path: str | None = None) -> list[Operation]:
+    """
+
+    Args:
+        text:
+        path:
+
+    Returns:
+
+    """
     operations = []
     for statement, line in _statements(text, path):
         operations.append(_parse_operation(statement, path, line))
@@ -48,6 +57,16 @@ def parse_text(text: str, path: str | None = None) -> list[Operation]:
 
 
 def _parse_operation(statement: str, path: str | None, line: int) -> Operation:
+    """
+
+    Args:
+        statement:
+        path:
+        line:
+
+    Returns:
+
+    """
     match = _CALL.match(statement)
     if not match:
         raise ParseError("expected operation call like network.path.action(...)", path, line)
@@ -68,6 +87,12 @@ def _parse_operation(statement: str, path: str | None, line: int) -> Operation:
 
 
 def _statements(text: str, path: str | None) -> Iterable[tuple[str, int]]:
+    """
+
+    Args:
+        text:
+        path:
+    """
     buffer: list[str] = []
     start_line = 1
     depth = 0
@@ -97,6 +122,14 @@ def _statements(text: str, path: str | None) -> Iterable[tuple[str, int]]:
 
 
 def _strip_comment(line: str) -> str:
+    """
+
+    Args:
+        line:
+
+    Returns:
+
+    """
     quote: str | None = None
     escaped = False
     for index, char in enumerate(line):
@@ -118,6 +151,16 @@ def _strip_comment(line: str) -> str:
 
 
 def _depth_delta(line: str, path: str | None, line_number: int) -> int:
+    """
+
+    Args:
+        line:
+        path:
+        line_number:
+
+    Returns:
+
+    """
     quote: str | None = None
     escaped = False
     delta = 0
@@ -157,6 +200,11 @@ class _ValueParser:
         self.index = 0
 
     def parse_arguments(self) -> dict[str, Any]:
+        """
+
+        Returns:
+
+        """
         args: dict[str, Any] = {}
         self._skip_ws()
         if self._done():
@@ -180,6 +228,11 @@ class _ValueParser:
                 return args
 
     def _value(self) -> Any:
+        """
+
+        Returns:
+
+        """
         self._skip_ws()
         if self._done():
             self._error("expected value")
@@ -204,6 +257,11 @@ class _ValueParser:
         self._error(f"unknown literal '{word}'")
 
     def _object(self) -> dict[str, Any]:
+        """
+
+        Returns:
+
+        """
         self._expect("{")
         result: dict[str, Any] = {}
         self._skip_ws()
@@ -224,6 +282,11 @@ class _ValueParser:
                 return result
 
     def _list(self) -> list[Any]:
+        """
+
+        Returns:
+
+        """
         self._expect("[")
         result: list[Any] = []
         self._skip_ws()
@@ -241,6 +304,11 @@ class _ValueParser:
                 return result
 
     def _string(self) -> str:
+        """
+
+        Returns:
+
+        """
         quote = self.text[self.index]
         start = self.index
         self.index += 1

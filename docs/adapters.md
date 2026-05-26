@@ -11,7 +11,7 @@ operations.
 ```python
 from network_lang import build_operation
 from network_lang.adapters import RouterOSExecutor, RouterOSRestTransport
-from network_lang.adapters.ros import Ros
+from network_lang.adapters.rosapi import Ros
 
 operation = build_operation("network.system.identity.get", target="edge-01")
 

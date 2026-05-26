@@ -13,6 +13,14 @@ COMMANDS = {"parse", "validate"}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """
+
+    Args:
+        argv:
+
+    Returns:
+
+    """
     args = _parse_args(list(sys.argv[1:] if argv is None else argv))
     had_error = False
 
@@ -47,6 +55,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
+    """
+
+    Args:
+        argv:
+
+    Returns:
+
+    """
     if argv and argv[0] not in COMMANDS and not argv[0].startswith("-"):
         argv = ["validate", *argv]
 

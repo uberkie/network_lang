@@ -29,7 +29,7 @@ device = target_device(target)
 print(f"target: {device.name} ({device.url})")
 print(f"write operations: {'execute' if apply_changes else 'dry-run'}")
 
-# ==================================================================
+#==================================================================
 # 1. List all neighbours of a device in the inventory.
 print("\n=== 1. list all neighbours ===")
 operation = device.operation("network.neighbors.list")

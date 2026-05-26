@@ -91,6 +91,15 @@ def reconcile_devices(
     expected: Iterable[DeviceRecord | dict[str, Any]],
     observed: Iterable[DeviceRecord | dict[str, Any]],
 ) -> ReconciliationReport:
+    """
+
+    Args:
+        expected:
+        observed:
+
+    Returns:
+
+    """
     expected_records = tuple(_device(record) for record in expected)
     observed_records = tuple(_device(record) for record in observed)
     expected_index = _index(expected_records)
@@ -135,6 +144,14 @@ def reconcile_devices(
 
 
 def _index(records: tuple[DeviceRecord, ...]) -> dict[str, int]:
+    """
+
+    Args:
+        records:
+
+    Returns:
+
+    """
     index: dict[str, int] = {}
     for record_index, record in enumerate(records):
         for key in record.keys():
@@ -143,12 +160,28 @@ def _index(records: tuple[DeviceRecord, ...]) -> dict[str, int]:
 
 
 def _device(record: DeviceRecord | dict[str, Any]) -> DeviceRecord:
+    """
+
+    Args:
+        record:
+
+    Returns:
+
+    """
     if isinstance(record, DeviceRecord):
         return record
     return DeviceRecord(**record)
 
 
 def _normalize_host(host: str) -> str:
+    """
+
+    Args:
+        host:
+
+    Returns:
+
+    """
     value = host.strip().lower()
     try:
         return str(ipaddress.ip_address(value))
@@ -157,6 +190,14 @@ def _normalize_host(host: str) -> str:
 
 
 def _normalize_mac(mac: str) -> str:
+    """
+
+    Args:
+        mac:
+
+    Returns:
+
+    """
     value = re.sub(r"[^0-9a-fA-F]", "", mac).lower()
     if len(value) == 12:
         return ":".join(value[index : index + 2] for index in range(0, 12, 2))

@@ -66,6 +66,17 @@ def target_device(
     inventory_path: str | Path | None = None,
     secure: bool | None = None,
 ) -> TargetDevice:
+    """
+
+    Args:
+        target:
+        inventory:
+        inventory_path:
+        secure:
+
+    Returns:
+
+    """
     record = resolve_target(
         target,
         inventory=inventory,
@@ -92,6 +103,17 @@ def collect_topology(
     inventory_path: str | Path | None = None,
     secure: bool | None = None,
 ) -> OperationResult:
+    """
+
+    Args:
+        target:
+        inventory:
+        inventory_path:
+        secure:
+
+    Returns:
+
+    """
     device = _target_device(
         target,
         inventory=inventory,
@@ -124,6 +146,20 @@ def preflight_operation(
     secure: bool | None = None,
     **params: Any,
 ) -> OperationResult:
+    """
+
+    Args:
+        target:
+        operation:
+        expected:
+        inventory:
+        inventory_path:
+        secure:
+        **params:
+
+    Returns:
+
+    """
     device = _target_device(
         target,
         inventory=inventory,
@@ -154,6 +190,16 @@ def resolve_target(
     inventory: Iterable[dict[str, Any]] | None = None,
     inventory_path: str | Path | None = None,
 ) -> dict[str, Any]:
+    """
+
+    Args:
+        target:
+        inventory:
+        inventory_path:
+
+    Returns:
+
+    """
     records = tuple(inventory) if inventory is not None else load_inventory(inventory_path)
     target_value = str(target)
 
@@ -165,6 +211,14 @@ def resolve_target(
 
 
 def load_inventory(inventory_path: str | Path | None = None) -> tuple[dict[str, Any], ...]:
+    """
+
+    Args:
+        inventory_path:
+
+    Returns:
+
+    """
     path = Path(inventory_path) if inventory_path else default_inventory_path()
     try:
         with path.open() as handle:
@@ -179,6 +233,11 @@ def load_inventory(inventory_path: str | Path | None = None) -> tuple[dict[str, 
 
 
 def default_inventory_path() -> Path:
+    """
+
+    Returns:
+
+    """
     configured = os.environ.get("NETWORK_LANG_INVENTORY")
     if configured:
         return Path(configured)
@@ -194,8 +253,21 @@ def _routeros_target_device(
     transport: str,
     secure: bool | None,
 ) -> TargetDevice:
+    """
+
+    Args:
+        record:
+        requested_target:
+        vendor:
+        platform:
+        transport:
+        secure:
+
+    Returns:
+
+    """
     from .adapters import RouterOSExecutor, RouterOSRestTransport
-    from .adapters.ros import Ros
+    from .adapters.rosapi import Ros
 
     url = _string(record.get("url"))
     if not url:
@@ -225,6 +297,17 @@ def _target_device(
     inventory_path: str | Path | None,
     secure: bool | None,
 ) -> TargetDevice:
+    """
+
+    Args:
+        target:
+        inventory:
+        inventory_path:
+        secure:
+
+    Returns:
+
+    """
     if isinstance(target, TargetDevice):
         return target
     return target_device(
@@ -240,6 +323,16 @@ def _operation_for_device(
     operation: Operation | str,
     params: dict[str, Any],
 ) -> Operation:
+    """
+
+    Args:
+        device:
+        operation:
+        params:
+
+    Returns:
+
+    """
     if isinstance(operation, Operation):
         if params:
             raise ValueError("operation params can only be passed with operation names")
@@ -249,6 +342,15 @@ def _operation_for_device(
 
 
 def _record_matches(record: dict[str, Any], target: str) -> bool:
+    """
+
+    Args:
+        record:
+        target:
+
+    Returns:
+
+    """
     for key in ("name", "url", "id", "host", "hostname", "address"):
         value = record.get(key)
         if value is not None and str(value) == target:
@@ -257,24 +359,60 @@ def _record_matches(record: dict[str, Any], target: str) -> bool:
 
 
 def _is_routeros(vendor: str, platform: str, transport: str) -> bool:
+    """
+
+    Args:
+        vendor:
+        platform:
+        transport:
+
+    Returns:
+
+    """
     return transport == "rest" and (
         vendor in {"mikrotik", "routeros"} or platform == "routeros"
     )
 
 
 def _normalized(value: Any, *, default: str) -> str:
+    """
+
+    Args:
+        value:
+        default:
+
+    Returns:
+
+    """
     if isinstance(value, str) and value.strip():
         return value.strip().lower()
     return default
 
 
 def _string(value: Any) -> str | None:
+    """
+
+    Args:
+        value:
+
+    Returns:
+
+    """
     if isinstance(value, str) and value.strip():
         return value.strip()
     return None
 
 
 def _bool(value: Any, *, default: bool) -> bool:
+    """
+
+    Args:
+        value:
+        default:
+
+    Returns:
+
+    """
     if isinstance(value, bool):
         return value
     if isinstance(value, str):

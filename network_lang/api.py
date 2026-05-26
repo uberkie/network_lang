@@ -43,7 +43,12 @@ network = OperationBuilder()
 
 
 def build_operation(operation_name: str, **params: Any) -> Operation:
-    """Build an operation from a dotted operation name."""
+    """Build an operation from a dotted operation name.
+
+    Args:
+        operation_name:
+        **params:
+    """
 
     parts = tuple(operation_name.split("."))
     if len(parts) < 3:

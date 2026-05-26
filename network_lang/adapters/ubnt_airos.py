@@ -102,6 +102,11 @@ def plan_airos_operation(
 
     This is intentionally not an executor. It lets the adapter state what it
     would call before auth/session handling, retries, and normalization exist.
+
+    Args:
+        operation:
+        endpoints:
+        firmware_major:
     """
 
     if operation.name in {
@@ -179,6 +184,16 @@ def _status_plan(
     endpoints: AirOSEndpoints,
     firmware_major: int | None,
 ) -> AirOSPlan:
+    """
+
+    Args:
+        operation:
+        endpoints:
+        firmware_major:
+
+    Returns:
+
+    """
     warnings = ()
     capability = "supported"
     if firmware_major == 6:
@@ -202,6 +217,17 @@ def _v8_get_plan(
     url: str,
     params: dict[str, Any] | None = None,
 ) -> AirOSPlan:
+    """
+
+    Args:
+        operation:
+        endpoints:
+        url:
+        params:
+
+    Returns:
+
+    """
     return AirOSPlan(
         operation=operation.name,
         capability="supported",
@@ -220,6 +246,18 @@ def _v8_post_plan(
     body: dict[str, Any] | None = None,
     warning: str | None = None,
 ) -> AirOSPlan:
+    """
+
+    Args:
+        operation:
+        endpoints:
+        url:
+        body:
+        warning:
+
+    Returns:
+
+    """
     warnings = (warning,) if warning else ()
     return AirOSPlan(
         operation=operation.name,
@@ -239,6 +277,17 @@ def _v8_or_legacy_post_plan(
     url: str,
     warning: str | None = None,
 ) -> AirOSPlan:
+    """
+
+    Args:
+        operation:
+        endpoints:
+        url:
+        warning:
+
+    Returns:
+
+    """
     warnings = (warning,) if warning else ()
     return AirOSPlan(
         operation=operation.name,
@@ -253,6 +302,15 @@ def _v8_or_legacy_post_plan(
 
 
 def _unsupported(operation: Operation, reason: str) -> AirOSPlan:
+    """
+
+    Args:
+        operation:
+        reason:
+
+    Returns:
+
+    """
     return AirOSPlan(
         operation=operation.name,
         capability="unsupported",

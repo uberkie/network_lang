@@ -80,6 +80,15 @@ def flow_observations_to_devices(
     flows: Iterable[FlowObservation | dict[str, Any]],
     endpoint: FlowEndpoint = "src",
 ) -> tuple[DeviceRecord, ...]:
+    """
+
+    Args:
+        flows:
+        endpoint:
+
+    Returns:
+
+    """
     devices: list[DeviceRecord] = []
     for flow in (_flow(record) for record in flows):
         if endpoint in {"src", "both"}:
@@ -93,6 +102,15 @@ def flow_observations_to_attachments(
     flows: Iterable[FlowObservation | dict[str, Any]],
     endpoint: FlowEndpoint = "src",
 ) -> tuple[AttachmentRecord, ...]:
+    """
+
+    Args:
+        flows:
+        endpoint:
+
+    Returns:
+
+    """
     attachments: list[AttachmentRecord] = []
     for flow in (_flow(record) for record in flows):
         if endpoint in {"src", "both"} and flow.ingress_interface:
@@ -122,6 +140,15 @@ def resolve_flow_target(
     target: str,
     flows: Iterable[FlowObservation | dict[str, Any]],
 ) -> FlowTargetResolution | None:
+    """
+
+    Args:
+        target:
+        flows:
+
+    Returns:
+
+    """
     host = _target_host(target)
     candidates: list[FlowTargetResolution] = []
 
@@ -171,6 +198,15 @@ def _flow(record: FlowObservation | dict[str, Any]) -> FlowObservation:
 
 
 def _flow_device(flow: FlowObservation, direction: Literal["src", "dst"]) -> DeviceRecord:
+    """
+
+    Args:
+        flow:
+        direction:
+
+    Returns:
+
+    """
     if direction == "src":
         host = flow.src_host
         mac = flow.src_mac
@@ -190,6 +226,15 @@ def _flow_device(flow: FlowObservation, direction: Literal["src", "dst"]) -> Dev
 
 
 def _flow_metadata(flow: FlowObservation, direction: str) -> dict[str, Any]:
+    """
+
+    Args:
+        flow:
+        direction:
+
+    Returns:
+
+    """
     peer_host = flow.dst_host if direction == "src" else flow.src_host
     interface = (
         flow.ingress_interface if direction == "src" else flow.egress_interface
