@@ -16,3 +16,7 @@ authors = [
 [project.scripts]
 uns = "network_lang.cli:main"
 
+[project.optional-dependencies]
+docs = [
+  "sphinx>=7",
+]

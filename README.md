@@ -1,254 +1,216 @@
 # Unified Network Syntax
 
-This repository is a starting point for an abstracted network operation syntax:
-a library-first, vendor-neutral intent layer that can map the same operator
-action onto different device interfaces such as SSH, REST, NETCONF, RESTCONF,
-SNMP, RouterOS API, vendor SDKs, and parser fallbacks.
+Unified Network Syntax is a small Python reference implementation for a
+vendor-neutral network operation model. It lets operators describe intent once,
+validate that intent, and then translate it to device-specific adapters such as
+MikroTik RouterOS REST or Ubiquiti airOS endpoint plans.
 
-The central idea is simple:
+The project is library-first. Text files and the `uns` CLI are convenient ways
+to parse and inspect the same operation model, but the core object is always an
+`Operation`.
 
 ```text
 operator intent
-  -> unified operation tree
-  -> capability resolver
-  -> adapter selection
-  -> device execution
+  -> unified operation
+  -> validation and capability planning
+  -> adapter execution or endpoint plan
   -> normalized result
 ```
 
-The syntax should not pretend that every device supports the same behavior.
-It should expose one stable operation model while being honest about device
-capabilities, transport limits, permissions, and partial results.
+## What Works Today
 
-The primary interface is the Python library. Text files and CLI commands are
-optional ways to load, validate, and inspect the same operation model.
+- Parse `.uns` operation files into typed Python `Operation` objects.
+- Build operations from Python with either fluent attribute access or dotted
+  operation names.
+- Validate namespaces, operation shape, core actions, and required targets.
+- Plan and execute selected MikroTik RouterOS REST operations.
+- Plan selected Ubiquiti airOS operations without executing them.
+- Normalize RouterOS neighbor, ARP, bridge host, and bridge port data into
+  inventory and topology records.
+- Reconcile expected devices or attachments against observed data.
+- Preflight risky interface operations against live or supplied topology
+  observations.
+- Convert NetFlow-like observations into topology evidence.
 
-## Design Principles
+## Install
 
-1. Intent is explicit.
-2. The model has no direct authority to run raw commands.
-3. Every operation has a predictable success or failure envelope.
-4. Device capabilities are discovered, cached, and checked before execution.
-5. Vendor-specific adapters are hidden behind stable network operations.
-6. Results are normalized into common shapes.
-7. Destructive or high-risk actions require confirmation.
+Use an editable install while developing:
 
-## First Operation Shape
+```sh
+python3 -m pip install -e .
+```
+
+The package exposes the `uns` console script and can also be run as a module:
+
+```sh
+uns validate examples/operations.uns
+python3 -m network_lang parse examples/operations.uns
+```
+
+## Quick Example
+
+```python
+from network_lang import build_operation, validate_operation
+from network_lang.adapters import plan_routeros_operation
+
+operation = build_operation(
+    "network.firewall.rules.create",
+    target="edge-01",
+    rule={
+        "chain": "forward",
+        "action": "drop",
+        "src": "10.20.30.0/24",
+        "dst": "0.0.0.0/0",
+    },
+)
+
+diagnostics = validate_operation(operation)
+if diagnostics:
+    raise ValueError(diagnostics[0].message)
+
+plan = plan_routeros_operation(operation)
+for step in plan.steps:
+    print(step.method, step.path, step.body)
+```
+
+## Operation Shape
+
+Operations use a dotted name and keyword parameters:
 
 ```text
 network.<resource-path>.<action>(target="device-or-selector", params...)
 ```
-
-`resource-path` is one or more dotted identifiers. This keeps simple resources
-and nested resources in the same model.
 
 Examples:
 
 ```text
 network.neighbors.list(target="tower-router-01")
 network.interfaces.get(target="core-sw-01", name="ether1")
-network.firewall.rules.create(target="edge-01", rule={...})
+network.firewall.rules.create(target="edge-01", rule={chain="forward", action="drop"})
 network.routes.list(target="branch-router-02", table="main")
-network.config.backup(target="ap-south-03")
+network.system.identity.get(target="ap-south-03")
 ```
 
-## Quick Start
+The currently recognized core actions are:
 
-Use the library directly:
+```text
+list get create update delete enable disable observe run backup diff validate
+```
+
+## Python API
+
+Build operations with the fluent API:
 
 ```python
-from network_lang import network, parse_text, validate_operation
+from network_lang import network
 
 operation = network.interfaces.get(target="core-sw-01", name="ether1")
-diagnostics = validate_operation(operation)
+print(operation.name)  # network.interfaces.get
+```
+
+Or build them dynamically:
+
+```python
+from network_lang import build_operation
+
+operation = build_operation(
+    "network.interfaces.disable",
+    target="core-sw-01",
+    name="ether24",
+)
+```
+
+Parse `.uns` text:
+
+```python
+from network_lang import parse_text
 
 operations = parse_text('network.neighbors.list(target="tower-router-01")')
 ```
 
-Build an operation from a dotted API-style name when dynamic dispatch is easier:
+## CLI
 
-```python
-from network_lang import build_operation
-
-operation = build_operation(
-    "network.firewall.rules.create",
-    target="edge-01",
-    rule={"chain": "forward", "action": "drop"},
-)
-```
-
-Execute a MikroTik RouterOS operation through the vendored REST client:
-
-```python
-from network_lang import build_operation
-from network_lang.adapters import RouterOSExecutor, RouterOSRestTransport
-from network_lang.adapters.ros import Ros
-
-operation = build_operation("network.system.identity.get", target="edge-01")
-
-ros = Ros("https://192.168.88.1/", "admin", "password", secure=False)
-result = RouterOSExecutor(RouterOSRestTransport(ros)).execute(operation)
-
-if result.ok:
-    print(result.data)
-else:
-    print(result.error)
-```
-
-Normalize RouterOS neighbor rows into reconciliation records:
-
-```python
-from network_lang import build_operation
-from network_lang.adapters import (
-    RouterOSExecutor,
-    RouterOSRestTransport,
-    routeros_neighbors_to_attachments,
-)
-from network_lang.adapters.ros import Ros
-
-operation = build_operation("network.neighbors.list", target="edge-01")
-ros = Ros("https://192.168.88.1/", "admin", "password", secure=False)
-result = RouterOSExecutor(RouterOSRestTransport(ros)).execute(operation)
-
-if result.ok:
-    observed = routeros_neighbors_to_attachments(result.data, "edge-01")
-```
-
-Collect a RouterOS topology snapshot and preflight a risky interface operation:
-
-```python
-from network_lang import target_device
-
-device = target_device("edge-01")
-
-snapshot_result = device.collect_topology()
-if not snapshot_result.ok:
-    raise RuntimeError(snapshot_result.error)
-
-snapshot = snapshot_result.data
-
-preflight = device.preflight(
-    "network.interfaces.disable",
-    name="ether2",
-)
-
-print(preflight.data.risks)
-```
-
-Compare source-of-truth inventory with live observations:
-
-```python
-from network_lang import DeviceRecord, reconcile_devices
-
-expected = [
-    DeviceRecord(name="edge-01", host="192.168.88.1"),
-    DeviceRecord(name="tower-ap-01", mac="AA:BB:CC:DD:EE:01"),
-]
-
-observed = [
-    DeviceRecord(name="edge-01-live", host="192.168.88.1"),
-    DeviceRecord(name="unknown-cpe", host="10.20.30.45"),
-]
-
-report = reconcile_devices(expected, observed)
-
-print(report.unknown_observed)
-print(report.missing_expected)
-```
-
-Preflight a risky interface change against live topology observations:
-
-```python
-from network_lang import (
-    AttachmentRecord,
-    DeviceRecord,
-    build_operation,
-    preflight_interface_operation,
-)
-
-operation = build_operation(
-    "network.interfaces.disable",
-    target="poe-switch-01",
-    name="ether1",
-)
-
-expected = [
-    AttachmentRecord(
-        DeviceRecord(name="device1", mac="AA:BB:CC:DD:EE:01"),
-        "poe-switch-01",
-        "ether1",
-    ),
-    AttachmentRecord(
-        DeviceRecord(name="device2", mac="AA:BB:CC:DD:EE:02"),
-        "poe-switch-01",
-        "ether1",
-    ),
-]
-
-observed = [
-    AttachmentRecord(
-        DeviceRecord(name="device1-live", mac="AA-BB-CC-DD-EE-01"),
-        "poe-switch-01",
-        "ether1",
-    ),
-    AttachmentRecord(
-        DeviceRecord(name="device2-live", mac="AA-BB-CC-DD-EE-02"),
-        "poe-switch-01",
-        "ether4",
-    ),
-]
-
-preflight = preflight_interface_operation(operation, expected, observed)
-print(preflight.risks)
-```
-
-Use flow samples as passive topology evidence:
-
-```python
-from network_lang import (
-    FlowObservation,
-    flow_observations_to_attachments,
-    resolve_flow_target,
-)
-
-flows = [
-    FlowObservation(
-        exporter="tower-nas-03",
-        src_host="10.20.30.45",
-        dst_host="8.8.8.8",
-        ingress_interface="pppoe-customer0172",
-        egress_interface="uplink-core",
-        bytes=12000,
-        packets=40,
-        src_identifiers=("radius:user/customer0172",),
-    )
-]
-
-observed = flow_observations_to_attachments(flows)
-target = resolve_flow_target("ip:10.20.30.45", flows)
-```
-
-The CLI is a thin wrapper around the library and is useful for local checks.
-
-Validate the example operation file:
+Validate operation files:
 
 ```sh
-python3 -m network_lang validate examples/operations.uns
+uns validate examples/operations.uns
 ```
 
 Print parsed operations as JSON:
 
 ```sh
-python3 -m network_lang parse examples/operations.uns
+uns parse examples/operations.uns
 ```
 
-Run the test suite:
+If the first argument is a file path, `uns` defaults to `validate`:
+
+```sh
+uns examples/operations.uns
+```
+
+## RouterOS Execution
+
+`target_device()` resolves a target from inventory, creates a RouterOS REST
+executor, and hides the adapter wiring behind a small device object.
+
+```python
+from network_lang import target_device
+
+device = target_device("edge-01")
+result = device.execute(
+    device.operation("network.system.identity.get")
+)
+
+if result.ok:
+    print(result.data)
+else:
+    print(result.error.message)
+```
+
+By default, inventory is loaded from `network_lang/data/inventory.json` under
+the current working directory. Set `NETWORK_LANG_INVENTORY` or pass
+`inventory_path=...` to use another file.
+
+## Topology Preflight
+
+Topology helpers let you check whether a risky interface operation lines up
+with the devices currently observed on that interface.
+
+```python
+from network_lang import target_device
+
+device = target_device("edge-01")
+preflight = device.preflight(
+    "network.interfaces.disable",
+    name="ether2",
+)
+
+if not preflight.ok:
+    print(preflight.data.risks)
+```
+
+## Documentation
+
+- [Sphinx documentation index](docs/source/index.rst)
+- [Getting started](docs/source/getting-started.rst)
+- [Operation model](docs/source/operations.rst)
+- [Adapters](docs/source/adapters.rst)
+- [Inventory and targets](docs/source/inventory.rst)
+- [Topology, reconciliation, and preflight](docs/source/topology-preflight.rst)
+- [Syntax v0 reference](docs/source/syntax-v0.rst)
+- [Example operations](examples/operations.uns)
+
+Build the HTML docs with:
+
+```sh
+cd docs
+make html
+```
+
+## Tests
+
+Run the test suite with:
 
 ```sh
 python3 -m unittest discover -s tests
 ```
-
-## Current Documents
-
-- [Syntax v0](docs/syntax-v0.md)
-- [Example operations](examples/operations.uns)

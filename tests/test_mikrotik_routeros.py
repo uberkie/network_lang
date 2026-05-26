@@ -120,6 +120,33 @@ class RouterOSPlanTests(unittest.TestCase):
         self.assertEqual(plan.steps[0].method, "GET")
         self.assertEqual(plan.steps[0].path, "/interface/bridge/port")
 
+    def test_bridge_port_create_maps_to_rest_path(self):
+        operation = build_operation(
+            "network.bridge.ports.create",
+            target="router-01",
+            port={
+                "bridge": "bridge2",
+                "interface": "ether8",
+                "pvid": 20,
+                "ingress_filtering": True,
+            },
+        )
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertTrue(plan.supported)
+        self.assertEqual(plan.steps[0].method, "PUT")
+        self.assertEqual(plan.steps[0].path, "/interface/bridge/port")
+        self.assertEqual(
+            plan.steps[0].body,
+            {
+                "bridge": "bridge2",
+                "interface": "ether8",
+                "pvid": 20,
+                "ingress-filtering": True,
+            },
+        )
+
     def test_route_create_translates_neutral_keys(self):
         operation = build_operation(
             "network.routes.create",
@@ -196,6 +223,63 @@ class RouterOSPlanTests(unittest.TestCase):
         self.assertEqual(plan.steps[0].method, "PATCH")
         self.assertEqual(plan.steps[0].path, "/interface/*1")
         self.assertEqual(plan.steps[0].body, {"disabled": False})
+
+    def test_vlan_create_maps_to_rest_path(self):
+        operation = build_operation(
+            "network.vlans.create",
+            target="router-01",
+            vlan={
+                "name": "vlan_mock_client",
+                "interface": "bridge2",
+                "vlan_id": 20,
+            },
+        )
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertTrue(plan.supported)
+        self.assertEqual(plan.steps[0].method, "PUT")
+        self.assertEqual(plan.steps[0].path, "/interface/vlan")
+        self.assertEqual(
+            plan.steps[0].body,
+            {
+                "name": "vlan_mock_client",
+                "interface": "bridge2",
+                "vlan-id": 20,
+            },
+        )
+
+    def test_vlan_update_by_id_patches_directly(self):
+        operation = build_operation(
+            "network.vlans.update",
+            target="router-01",
+            id="*4",
+            vlan={"vlan_id": 30},
+        )
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertEqual(plan.capability, "supported")
+        self.assertEqual(plan.steps[0].method, "PATCH")
+        self.assertEqual(plan.steps[0].path, "/interface/vlan/*4")
+        self.assertEqual(plan.steps[0].body, {"vlan-id": 30})
+
+    def test_vlan_update_by_name_requires_lookup(self):
+        operation = build_operation(
+            "network.vlans.update",
+            target="router-01",
+            name="vlan_mock_client",
+            vlan={"vlan_id": 30},
+        )
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertEqual(plan.capability, "supported_via_fallback")
+        self.assertEqual([step.method for step in plan.steps], ["GET", "PATCH"])
+        self.assertEqual(plan.steps[0].path, "/interface/vlan")
+        self.assertEqual(plan.steps[0].params, {"name": "vlan_mock_client"})
+        self.assertEqual(plan.steps[1].path, "/interface/vlan/<resolved-id>")
+        self.assertEqual(plan.steps[1].body, {"vlan-id": 30})
 
     def test_unknown_operation_is_unsupported(self):
         operation = build_operation("network.system.reboot.run", target="router-01")

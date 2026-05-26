@@ -5,6 +5,7 @@ __pycache__/
 .coverage
 dist/
 build/
+docs/build/
 *.egg-info/
 .idea/
 *:Zone.Identifier

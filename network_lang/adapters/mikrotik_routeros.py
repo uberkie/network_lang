@@ -450,6 +450,17 @@ def plan_routeros_operation(operation: Operation) -> RouterOSPlan:
     if operation.name == "network.bridge.ports.list":
         return _get(operation, "/interface/bridge/port", _filters(operation))
 
+    if operation.name == "network.bridge.ports.create":
+        port = _body_map(operation, "port", "data")
+        if not port:
+            return _unsupported(operation, "bridge port create requires port or data params")
+        return _write(
+            operation,
+            "PUT",
+            "/interface/bridge/port",
+            _translate_keys(port, BRIDGE_PORT_KEY_MAP),
+        )
+
     if operation.name == "network.interfaces.list":
         return _get(operation, "/interface", _filters(operation))
 
@@ -507,6 +518,27 @@ def plan_routeros_operation(operation: Operation) -> RouterOSPlan:
             return _unsupported(operation, "address create requires address or data params")
         return _write(operation, "PUT", "/ip/address", address)
 
+    if operation.name == "network.vlans.create":
+        vlan = _body_map(operation, "vlan", "data")
+        if not vlan:
+            return _unsupported(operation, "vlan create requires vlan or data params")
+        return _write(
+            operation,
+            "PUT",
+            "/interface/vlan",
+            _translate_keys(vlan, VLAN_KEY_MAP),
+        )
+
+    if operation.name == "network.vlans.update":
+        vlan = _body_map(operation, "vlan", "data")
+        if not vlan:
+            return _unsupported(operation, "vlan update requires vlan or data params")
+        return _update_by_id_or_match(
+            operation,
+            "/interface/vlan",
+            _translate_keys(vlan, VLAN_KEY_MAP),
+        )
+
     if operation.name == "network.wireless.clients.list":
         return _get(
             operation,
@@ -546,6 +578,32 @@ FIREWALL_RULE_KEY_MAP = {
     "connection_nat_state": "connection-nat-state",
     "log_prefix": "log-prefix",
     "place_before": "place-before",
+}
+
+BRIDGE_PORT_KEY_MAP = {
+    "auto_isolate": "auto-isolate",
+    "bpdu_guard": "bpdu-guard",
+    "broadcast_flood": "broadcast-flood",
+    "fast_leave": "fast-leave",
+    "frame_types": "frame-types",
+    "ingress_filtering": "ingress-filtering",
+    "internal_path_cost": "internal-path-cost",
+    "path_cost": "path-cost",
+    "point_to_point": "point-to-point",
+    "restricted_role": "restricted-role",
+    "restricted_tcn": "restricted-tcn",
+    "tag_stacking": "tag-stacking",
+    "unknown_multicast_flood": "unknown-multicast-flood",
+    "unknown_unicast_flood": "unknown-unicast-flood",
+}
+
+VLAN_KEY_MAP = {
+    "vlan_id": "vlan-id",
+    "use_service_tag": "use-service-tag",
+    "arp": "arp",
+    "local_proxy_arp": "local-proxy-arp",
+    "proxy_arp": "proxy-arp",
+    "reply_only": "reply-only",
 }
 
 
@@ -608,6 +666,38 @@ def _toggle_by_id_or_match(
                 "PATCH",
                 f"{path}/<resolved-id>",
                 body={"disabled": disabled},
+            ),
+        ),
+        warnings=("operation requires resolving a RouterOS internal id before patch",),
+    )
+
+
+def _update_by_id_or_match(
+    operation: Operation,
+    path: str,
+    body: dict[str, Any],
+) -> RouterOSPlan:
+    resource_id = operation.params.get("id")
+    if isinstance(resource_id, str) and resource_id:
+        return _write(operation, "PATCH", f"{path}/{resource_id}", body)
+
+    filters = _filters(operation)
+    name = operation.params.get("name")
+    if isinstance(name, str):
+        filters["name"] = name
+    if not filters:
+        return _unsupported(operation, "update requires id, name, or match params")
+
+    return RouterOSPlan(
+        operation=operation.name,
+        capability="supported_via_fallback",
+        steps=(
+            RouterOSPlanStep("lookup", "GET", path, params=filters),
+            RouterOSPlanStep(
+                operation.action,
+                "PATCH",
+                f"{path}/<resolved-id>",
+                body=body,
             ),
         ),
         warnings=("operation requires resolving a RouterOS internal id before patch",),
