@@ -77,6 +77,117 @@ operation = build_operation(
 )
 ```
 
+Execute a MikroTik RouterOS operation through the vendored REST client:
+
+```python
+from network_lang import build_operation
+from network_lang.adapters import RouterOSExecutor, RouterOSRestTransport
+from network_lang.adapters.ros import Ros
+
+operation = build_operation("network.system.identity.get", target="edge-01")
+
+ros = Ros("https://192.168.88.1/", "admin", "password", secure=False)
+result = RouterOSExecutor(RouterOSRestTransport(ros)).execute(operation)
+
+if result.ok:
+    print(result.data)
+else:
+    print(result.error)
+```
+
+Compare source-of-truth inventory with live observations:
+
+```python
+from network_lang import DeviceRecord, reconcile_devices
+
+expected = [
+    DeviceRecord(name="edge-01", host="192.168.88.1"),
+    DeviceRecord(name="tower-ap-01", mac="AA:BB:CC:DD:EE:01"),
+]
+
+observed = [
+    DeviceRecord(name="edge-01-live", host="192.168.88.1"),
+    DeviceRecord(name="unknown-cpe", host="10.20.30.45"),
+]
+
+report = reconcile_devices(expected, observed)
+
+print(report.unknown_observed)
+print(report.missing_expected)
+```
+
+Preflight a risky interface change against live topology observations:
+
+```python
+from network_lang import (
+    AttachmentRecord,
+    DeviceRecord,
+    build_operation,
+    preflight_interface_operation,
+)
+
+operation = build_operation(
+    "network.interfaces.disable",
+    target="poe-switch-01",
+    name="ether1",
+)
+
+expected = [
+    AttachmentRecord(
+        DeviceRecord(name="device1", mac="AA:BB:CC:DD:EE:01"),
+        "poe-switch-01",
+        "ether1",
+    ),
+    AttachmentRecord(
+        DeviceRecord(name="device2", mac="AA:BB:CC:DD:EE:02"),
+        "poe-switch-01",
+        "ether1",
+    ),
+]
+
+observed = [
+    AttachmentRecord(
+        DeviceRecord(name="device1-live", mac="AA-BB-CC-DD-EE-01"),
+        "poe-switch-01",
+        "ether1",
+    ),
+    AttachmentRecord(
+        DeviceRecord(name="device2-live", mac="AA-BB-CC-DD-EE-02"),
+        "poe-switch-01",
+        "ether4",
+    ),
+]
+
+preflight = preflight_interface_operation(operation, expected, observed)
+print(preflight.risks)
+```
+
+Use flow samples as passive topology evidence:
+
+```python
+from network_lang import (
+    FlowObservation,
+    flow_observations_to_attachments,
+    resolve_flow_target,
+)
+
+flows = [
+    FlowObservation(
+        exporter="tower-nas-03",
+        src_host="10.20.30.45",
+        dst_host="8.8.8.8",
+        ingress_interface="pppoe-customer0172",
+        egress_interface="uplink-core",
+        bytes=12000,
+        packets=40,
+        src_identifiers=("radius:user/customer0172",),
+    )
+]
+
+observed = flow_observations_to_attachments(flows)
+target = resolve_flow_target("ip:10.20.30.45", flows)
+```
+
 The CLI is a thin wrapper around the library and is useful for local checks.
 
 Validate the example operation file:

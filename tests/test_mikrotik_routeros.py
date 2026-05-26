@@ -1,7 +1,75 @@
 import unittest
 
 from network_lang import build_operation
-from network_lang.adapters import plan_routeros_operation
+from network_lang.adapters import (
+    RouterOSExecutor,
+    RouterOSRestTransport,
+    plan_routeros_operation,
+)
+
+
+class FakeRouterOSTransport:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.requests = []
+
+    def request(self, method, path, params=None, body=None):
+        self.requests.append(
+            {
+                "method": method,
+                "path": path,
+                "params": params,
+                "body": body,
+            }
+        )
+        if not self.responses:
+            return None
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
+class FakeResponse:
+    def __init__(self, text):
+        self.text = text
+        self.raised = False
+
+    def raise_for_status(self):
+        self.raised = True
+
+
+class FakeRosSession:
+    def __init__(self, response):
+        self.response = response
+        self.calls = []
+
+    def get(self, url, params=None, verify=None):
+        self.calls.append(("GET", url, params, None, verify))
+        return self.response
+
+    def put(self, url, json=None):
+        self.calls.append(("PUT", url, None, json, None))
+        return self.response
+
+    def patch(self, url, json=None):
+        self.calls.append(("PATCH", url, None, json, None))
+        return self.response
+
+    def post(self, url, json=None):
+        self.calls.append(("POST", url, None, json, None))
+        return self.response
+
+    def delete(self, url):
+        self.calls.append(("DELETE", url, None, None, None))
+        return self.response
+
+
+class FakeRos:
+    def __init__(self, response):
+        self.url = "https://router.example/rest"
+        self.secure = False
+        self.session = FakeRosSession(response)
 
 
 class RouterOSPlanTests(unittest.TestCase):
@@ -99,6 +167,141 @@ class RouterOSPlanTests(unittest.TestCase):
 
         self.assertFalse(plan.supported)
         self.assertEqual(plan.capability, "unsupported")
+
+
+class RouterOSExecutorTests(unittest.TestCase):
+    def test_executes_get_operation(self):
+        operation = build_operation("network.system.identity.get", target="router-01")
+        transport = FakeRouterOSTransport([{"name": "edge-01"}])
+
+        result = RouterOSExecutor(transport).execute(operation)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.operation, "network.system.identity.get")
+        self.assertEqual(result.target, "router-01")
+        self.assertEqual(result.adapter["vendor"], "mikrotik")
+        self.assertEqual(result.data, {"name": "edge-01"})
+        self.assertEqual(
+            transport.requests,
+            [
+                {
+                    "method": "GET",
+                    "path": "/system/identity",
+                    "params": None,
+                    "body": None,
+                }
+            ],
+        )
+
+    def test_executes_route_create(self):
+        operation = build_operation(
+            "network.routes.create",
+            target="router-01",
+            route={"dst": "0.0.0.0/0", "gateway": "192.168.88.1"},
+        )
+        transport = FakeRouterOSTransport([{"id": "*1"}])
+
+        result = RouterOSExecutor(transport).execute(operation)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.data, {"id": "*1"})
+        self.assertEqual(transport.requests[0]["method"], "PUT")
+        self.assertEqual(transport.requests[0]["path"], "/ip/route")
+        self.assertEqual(
+            transport.requests[0]["body"],
+            {"dst-address": "0.0.0.0/0", "gateway": "192.168.88.1"},
+        )
+
+    def test_resolves_id_before_interface_disable(self):
+        operation = build_operation(
+            "network.interfaces.disable",
+            target="router-01",
+            name="ether1",
+        )
+        transport = FakeRouterOSTransport(
+            [
+                [{"id": "*2", "name": "ether1"}],
+                {"id": "*2", "disabled": True},
+            ]
+        )
+
+        result = RouterOSExecutor(transport).execute(operation)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.data, {"id": "*2", "disabled": True})
+        self.assertEqual(
+            transport.requests,
+            [
+                {
+                    "method": "GET",
+                    "path": "/interface",
+                    "params": {"name": "ether1"},
+                    "body": None,
+                },
+                {
+                    "method": "PATCH",
+                    "path": "/interface/*2",
+                    "params": None,
+                    "body": {"disabled": True},
+                },
+            ],
+        )
+
+    def test_lookup_not_found_returns_error_result(self):
+        operation = build_operation(
+            "network.interfaces.disable",
+            target="router-01",
+            name="ether99",
+        )
+        transport = FakeRouterOSTransport([[]])
+
+        result = RouterOSExecutor(transport).execute(operation)
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code, "LOOKUP_NOT_FOUND")
+        self.assertEqual(len(transport.requests), 1)
+
+    def test_unsupported_operation_returns_error_without_transport_call(self):
+        operation = build_operation("network.system.reboot.run", target="router-01")
+        transport = FakeRouterOSTransport([])
+
+        result = RouterOSExecutor(transport).execute(operation)
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code, "UNSUPPORTED_OPERATION")
+        self.assertEqual(transport.requests, [])
+
+
+class RouterOSRestTransportTests(unittest.TestCase):
+    def test_rest_transport_uses_ros_session_and_cleans_response_keys(self):
+        response = FakeResponse(
+            '[{".id": "*1", "dst-address": "0.0.0.0/0", "routing-table": "main"}]'
+        )
+        ros = FakeRos(response)
+
+        data = RouterOSRestTransport(ros).request(
+            "GET",
+            "/ip/route",
+            params={"dst-address": "0.0.0.0/0"},
+        )
+
+        self.assertTrue(response.raised)
+        self.assertEqual(
+            ros.session.calls,
+            [
+                (
+                    "GET",
+                    "https://router.example/rest/ip/route",
+                    {"dst-address": "0.0.0.0/0"},
+                    None,
+                    False,
+                )
+            ],
+        )
+        self.assertEqual(
+            data,
+            [{"id": "*1", "dst_address": "0.0.0.0/0", "routing_table": "main"}],
+        )
 
 
 if __name__ == "__main__":

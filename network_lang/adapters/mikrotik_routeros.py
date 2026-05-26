@@ -1,9 +1,158 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from ..model import Operation
+from ..result import OperationResult, ResultError
+
+
+ROUTEROS_ADAPTER = {
+    "vendor": "mikrotik",
+    "platform": "routeros",
+    "transport": "rest",
+    "name": "routeros-rest",
+}
+
+
+class RouterOSTransport(Protocol):
+    def request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+    ) -> Any:
+        ...
+
+
+class RouterOSRestTransport:
+    """Execute RouterOS REST calls through a vendored Ros client instance."""
+
+    def __init__(self, ros: Any) -> None:
+        self.ros = ros
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
+    ) -> Any:
+        url = f"{self.ros.url}{path}"
+        session = self.ros.session
+        method = method.upper()
+
+        if method == "GET":
+            response = session.get(url, params=params, verify=self.ros.secure)
+        elif method == "PUT":
+            response = session.put(url, json=body)
+        elif method == "PATCH":
+            response = session.patch(url, json=body)
+        elif method == "POST":
+            response = session.post(url, json=body)
+        elif method == "DELETE":
+            response = session.delete(url)
+        else:
+            raise ValueError(f"unsupported RouterOS REST method: {method}")
+
+        if hasattr(response, "raise_for_status"):
+            response.raise_for_status()
+        if not getattr(response, "text", ""):
+            return None
+
+        data = json.loads(response.text)
+        return _clean_routeros_data(data)
+
+
+class RouterOSExecutor:
+    def __init__(self, transport: RouterOSTransport) -> None:
+        self.transport = transport
+
+    def execute(self, operation: Operation) -> OperationResult:
+        plan = plan_routeros_operation(operation)
+        return self.execute_plan(operation, plan)
+
+    def execute_plan(
+        self,
+        operation: Operation,
+        plan: RouterOSPlan,
+    ) -> OperationResult:
+        if not plan.supported:
+            return _result_error(
+                operation,
+                plan.capability,
+                "UNSUPPORTED_OPERATION",
+                plan.warnings[0] if plan.warnings else "operation is unsupported",
+                warnings=plan.warnings,
+            )
+
+        outputs: list[Any] = []
+        resolved_id: str | None = None
+
+        try:
+            for step in plan.steps:
+                path = step.path
+                if "<resolved-id>" in path:
+                    if not resolved_id:
+                        return _result_error(
+                            operation,
+                            plan.capability,
+                            "LOOKUP_NOT_RESOLVED",
+                            "operation requires a prior lookup result with an id",
+                            warnings=plan.warnings,
+                        )
+                    path = path.replace("<resolved-id>", resolved_id)
+
+                data = self.transport.request(
+                    step.method,
+                    path,
+                    params=step.params,
+                    body=step.body,
+                )
+
+                if step.name == "lookup":
+                    lookup = _extract_single_id(data)
+                    if lookup.error:
+                        return _result_error(
+                            operation,
+                            plan.capability,
+                            lookup.error.code,
+                            lookup.error.message,
+                            warnings=plan.warnings,
+                            detail=lookup.error.detail,
+                        )
+                    resolved_id = lookup.resource_id
+                    continue
+
+                outputs.append(data)
+        except Exception as error:
+            return _result_error(
+                operation,
+                plan.capability,
+                "ADAPTER_ERROR",
+                str(error),
+                warnings=plan.warnings,
+            )
+
+        data = outputs[0] if len(outputs) == 1 else outputs
+        return OperationResult(
+            ok=True,
+            operation=operation.name,
+            target=operation.target,
+            capability=plan.capability,
+            adapter=dict(ROUTEROS_ADAPTER),
+            data=data,
+            warnings=plan.warnings,
+        )
+
+
+def execute_routeros_operation(
+    operation: Operation,
+    transport: RouterOSTransport,
+) -> OperationResult:
+    return RouterOSExecutor(transport).execute(operation)
 
 
 @dataclass(frozen=True)
@@ -229,3 +378,71 @@ def _unsupported(operation: Operation, reason: str) -> RouterOSPlan:
         steps=(),
         warnings=(reason,),
     )
+
+
+@dataclass(frozen=True)
+class _LookupResult:
+    resource_id: str | None = None
+    error: ResultError | None = None
+
+
+def _extract_single_id(data: Any) -> _LookupResult:
+    if isinstance(data, list):
+        if not data:
+            return _LookupResult(
+                error=ResultError("LOOKUP_NOT_FOUND", "lookup returned no records")
+            )
+        if len(data) > 1:
+            return _LookupResult(
+                error=ResultError(
+                    "LOOKUP_NOT_UNIQUE",
+                    "lookup returned more than one record",
+                    detail=data,
+                )
+            )
+        return _extract_single_id(data[0])
+
+    resource_id = _resource_id(data)
+    if resource_id:
+        return _LookupResult(resource_id=resource_id)
+    return _LookupResult(
+        error=ResultError("LOOKUP_MISSING_ID", "lookup result did not include an id")
+    )
+
+
+def _resource_id(data: Any) -> str | None:
+    if isinstance(data, dict):
+        value = data.get("id") or data.get(".id")
+        return value if isinstance(value, str) and value else None
+    value = getattr(data, "id", None)
+    return value if isinstance(value, str) and value else None
+
+
+def _result_error(
+    operation: Operation,
+    capability: str,
+    code: str,
+    message: str,
+    warnings: tuple[str, ...] = (),
+    detail: Any = None,
+) -> OperationResult:
+    return OperationResult(
+        ok=False,
+        operation=operation.name,
+        target=operation.target,
+        capability=capability,
+        adapter=dict(ROUTEROS_ADAPTER),
+        warnings=warnings,
+        error=ResultError(code, message, detail=detail),
+    )
+
+
+def _clean_routeros_data(data: Any) -> Any:
+    if isinstance(data, list):
+        return [_clean_routeros_data(value) for value in data]
+    if isinstance(data, dict):
+        return {
+            key.replace("-", "_").replace(".", ""): _clean_routeros_data(value)
+            for key, value in data.items()
+        }
+    return data

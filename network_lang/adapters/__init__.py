@@ -3,6 +3,10 @@
 from .mikrotik_routeros import (
     RouterOSPlan,
     RouterOSPlanStep,
+    RouterOSExecutor,
+    RouterOSRestTransport,
+    RouterOSTransport,
+    execute_routeros_operation,
     plan_routeros_operation,
 )
 from .ubnt_airos import (
@@ -18,6 +22,10 @@ __all__ = [
     "AirOSPlanStep",
     "RouterOSPlan",
     "RouterOSPlanStep",
+    "RouterOSExecutor",
+    "RouterOSRestTransport",
+    "RouterOSTransport",
+    "execute_routeros_operation",
     "plan_airos_operation",
     "plan_routeros_operation",
 ]
