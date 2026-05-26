@@ -3,6 +3,7 @@ import unittest
 from network_lang import (
     AttachmentRecord,
     DeviceRecord,
+    InterfaceStateRecord,
     build_operation,
     preflight_interface_operation,
     reconcile_attachments,
@@ -104,6 +105,32 @@ class TopologyAttachmentTests(unittest.TestCase):
 
         self.assertTrue(report.ok)
         self.assertEqual(report.risks, ())
+
+    def test_preflight_flags_inactive_interface_state(self):
+        operation = build_operation(
+            "network.interfaces.disable",
+            target="poe-switch-01",
+            name="ether2",
+        )
+        interface_states = [
+            InterfaceStateRecord(
+                network_device="poe-switch-01",
+                interface="ether2",
+                scope="bridge1",
+                inactive=True,
+            )
+        ]
+
+        report = preflight_interface_operation(
+            operation,
+            [],
+            [],
+            interface_states,
+        )
+
+        self.assertFalse(report.ok)
+        self.assertEqual(report.interface_state, interface_states[0])
+        self.assertEqual(report.risks, ("poe-switch-01 ether2 (bridge1) is inactive",))
 
     def test_accepts_dict_attachment_records(self):
         report = reconcile_attachments(

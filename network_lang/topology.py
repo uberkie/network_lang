@@ -44,6 +44,47 @@ class AttachmentRecord:
 
 
 @dataclass(frozen=True)
+class InterfaceStateRecord:
+    network_device: str
+    interface: str
+    source: str | None = None
+    scope: str | None = None
+    disabled: bool | None = None
+    inactive: bool | None = None
+    running: bool | None = None
+    status: str | None = None
+    forwarding: bool | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def location_key(self) -> tuple[str, str, str | None]:
+        return (
+            self.network_device.strip().lower(),
+            self.interface.strip().lower(),
+            self.scope.strip().lower() if self.scope else None,
+        )
+
+    def location_label(self) -> str:
+        location = f"{self.network_device} {self.interface}"
+        if self.scope:
+            return f"{location} ({self.scope})"
+        return location
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "network_device": self.network_device,
+            "interface": self.interface,
+            "source": self.source,
+            "scope": self.scope,
+            "disabled": self.disabled,
+            "inactive": self.inactive,
+            "running": self.running,
+            "status": self.status,
+            "forwarding": self.forwarding,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass(frozen=True)
 class AttachmentMatch:
     expected: AttachmentRecord
     observed: AttachmentRecord
@@ -126,6 +167,7 @@ class TopologyPreflightReport:
     interface: str | None
     reconciliation: AttachmentReconciliationReport
     risks: tuple[str, ...]
+    interface_state: InterfaceStateRecord | None = None
 
     @property
     def ok(self) -> bool:
@@ -138,6 +180,9 @@ class TopologyPreflightReport:
             "target": self.target,
             "interface": self.interface,
             "risks": list(self.risks),
+            "interface_state": (
+                self.interface_state.to_dict() if self.interface_state else None
+            ),
             "reconciliation": self.reconciliation.to_dict(),
         }
 
@@ -196,10 +241,12 @@ def preflight_interface_operation(
     operation: Operation,
     expected: Iterable[AttachmentRecord | dict[str, Any]],
     observed: Iterable[AttachmentRecord | dict[str, Any]],
+    interface_states: Iterable[InterfaceStateRecord | dict[str, Any]] | None = None,
 ) -> TopologyPreflightReport:
     interface = _operation_interface(operation)
     expected_records = tuple(_attachment(record) for record in expected)
     observed_records = tuple(_attachment(record) for record in observed)
+    state_records = tuple(_interface_state(record) for record in interface_states or ())
 
     if not isinstance(operation.target, str) or not interface:
         reconciliation = reconcile_attachments((), ())
@@ -227,12 +274,18 @@ def preflight_interface_operation(
     )
 
     reconciliation = reconcile_attachments(scoped_expected, scoped_observed)
+    interface_state = _matching_interface_state(
+        state_records,
+        operation.target,
+        interface,
+    )
     return TopologyPreflightReport(
         operation=operation.name,
         target=operation.target,
         interface=interface,
         reconciliation=reconciliation,
-        risks=_risks(reconciliation),
+        risks=_risks(reconciliation) + _interface_state_risks(interface_state),
+        interface_state=interface_state,
     )
 
 
@@ -252,6 +305,30 @@ def _attachment(record: AttachmentRecord | dict[str, Any]) -> AttachmentRecord:
     if isinstance(device, dict):
         values["device"] = DeviceRecord(**device)
     return AttachmentRecord(**values)
+
+
+def _interface_state(
+    record: InterfaceStateRecord | dict[str, Any],
+) -> InterfaceStateRecord:
+    if isinstance(record, InterfaceStateRecord):
+        return record
+    return InterfaceStateRecord(**dict(record))
+
+
+def _matching_interface_state(
+    records: tuple[InterfaceStateRecord, ...],
+    network_device: str,
+    interface: str,
+) -> InterfaceStateRecord | None:
+    wanted_device = network_device.strip().lower()
+    wanted_interface = interface.strip().lower()
+    for record in records:
+        if (
+            record.network_device.strip().lower() == wanted_device
+            and record.interface.strip().lower() == wanted_interface
+        ):
+            return record
+    return None
 
 
 def _duplicate_observations(
@@ -317,4 +394,22 @@ def _risks(report: AttachmentReconciliationReport) -> tuple[str, ...]:
             attachment.location_label() for attachment in duplicate.observations
         )
         risks.append(f"{duplicate.key} observed in multiple locations: {locations}")
+    return tuple(risks)
+
+
+def _interface_state_risks(
+    interface_state: InterfaceStateRecord | None,
+) -> tuple[str, ...]:
+    if not interface_state:
+        return ()
+
+    risks = []
+    if interface_state.disabled:
+        risks.append(f"{interface_state.location_label()} is disabled")
+    if interface_state.inactive:
+        risks.append(f"{interface_state.location_label()} is inactive")
+    if interface_state.running is False and not (
+        interface_state.disabled or interface_state.inactive
+    ):
+        risks.append(f"{interface_state.location_label()} is not running")
     return tuple(risks)

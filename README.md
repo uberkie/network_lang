@@ -95,6 +95,61 @@ else:
     print(result.error)
 ```
 
+Normalize RouterOS neighbor rows into reconciliation records:
+
+```python
+from network_lang import build_operation
+from network_lang.adapters import (
+    RouterOSExecutor,
+    RouterOSRestTransport,
+    routeros_neighbors_to_attachments,
+)
+from network_lang.adapters.ros import Ros
+
+operation = build_operation("network.neighbors.list", target="edge-01")
+ros = Ros("https://192.168.88.1/", "admin", "password", secure=False)
+result = RouterOSExecutor(RouterOSRestTransport(ros)).execute(operation)
+
+if result.ok:
+    observed = routeros_neighbors_to_attachments(result.data, "edge-01")
+```
+
+Collect a RouterOS topology snapshot and preflight a risky interface operation:
+
+```python
+from network_lang import build_operation, preflight_interface_operation
+from network_lang.adapters import (
+    RouterOSExecutor,
+    RouterOSRestTransport,
+    collect_routeros_topology,
+)
+from network_lang.adapters.ros import Ros
+
+ros = Ros("https://192.168.88.1/", "admin", "password", secure=False)
+executor = RouterOSExecutor(RouterOSRestTransport(ros))
+
+snapshot_result = collect_routeros_topology(executor, "edge-01")
+if not snapshot_result.ok:
+    raise RuntimeError(snapshot_result.error)
+
+snapshot = snapshot_result.data
+
+operation = build_operation(
+    "network.interfaces.disable",
+    target="edge-01",
+    name="ether2",
+)
+
+preflight = preflight_interface_operation(
+    operation,
+    expected=[],
+    observed=snapshot.attachments,
+    interface_states=snapshot.interface_states,
+)
+
+print(preflight.risks)
+```
+
 Compare source-of-truth inventory with live observations:
 
 ```python

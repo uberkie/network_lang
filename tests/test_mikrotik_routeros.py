@@ -1,10 +1,19 @@
 import unittest
 
 from network_lang import build_operation
+from network_lang import AttachmentRecord, DeviceRecord, preflight_interface_operation
 from network_lang.adapters import (
     RouterOSExecutor,
     RouterOSRestTransport,
+    collect_routeros_topology,
     plan_routeros_operation,
+    preflight_routeros_operation,
+    routeros_arp_to_attachments,
+    routeros_arp_to_devices,
+    routeros_bridge_hosts_to_attachments,
+    routeros_bridge_ports_to_interface_states,
+    routeros_neighbors_to_attachments,
+    routeros_neighbors_to_devices,
 )
 
 
@@ -82,6 +91,34 @@ class RouterOSPlanTests(unittest.TestCase):
         self.assertEqual(plan.capability, "supported")
         self.assertEqual(plan.steps[0].method, "GET")
         self.assertEqual(plan.steps[0].path, "/system/identity")
+
+    def test_neighbors_list_maps_to_rest_path(self):
+        operation = build_operation("network.neighbors.list", target="router-01")
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertTrue(plan.supported)
+        self.assertEqual(plan.capability, "supported")
+        self.assertEqual(plan.steps[0].method, "GET")
+        self.assertEqual(plan.steps[0].path, "/ip/neighbor")
+
+    def test_bridge_hosts_list_maps_to_rest_path(self):
+        operation = build_operation("network.bridge.hosts.list", target="router-01")
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertTrue(plan.supported)
+        self.assertEqual(plan.steps[0].method, "GET")
+        self.assertEqual(plan.steps[0].path, "/interface/bridge/host")
+
+    def test_bridge_ports_list_maps_to_rest_path(self):
+        operation = build_operation("network.bridge.ports.list", target="router-01")
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertTrue(plan.supported)
+        self.assertEqual(plan.steps[0].method, "GET")
+        self.assertEqual(plan.steps[0].path, "/interface/bridge/port")
 
     def test_route_create_translates_neutral_keys(self):
         operation = build_operation(
@@ -272,6 +309,113 @@ class RouterOSExecutorTests(unittest.TestCase):
         self.assertEqual(transport.requests, [])
 
 
+class RouterOSTopologyCollectionTests(unittest.TestCase):
+    def test_collect_routeros_topology_reads_neighbors_and_bridge_ports(self):
+        transport = FakeRouterOSTransport(
+            [
+                [
+                    {
+                        "address4": "192.168.0.10",
+                        "identity": "tower-cpe-01",
+                        "interface_name": "bridge1/ether2",
+                        "mac_address": "74:4D:28:35:62:1B",
+                    }
+                ],
+                [
+                    {
+                        "interface": "ether2",
+                        "bridge": "bridge1",
+                        "disabled": "false",
+                        "inactive": "true",
+                        "status": "inactive",
+                    }
+                ],
+            ]
+        )
+
+        result = collect_routeros_topology(RouterOSExecutor(transport), "edge-01")
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.operation, "network.topology.snapshot.observe")
+        self.assertEqual(result.data.attachments[0].interface, "ether2")
+        self.assertEqual(result.data.interface_states[0].interface, "ether2")
+        self.assertTrue(result.data.interface_states[0].inactive)
+        self.assertFalse(result.data.interface_states[0].running)
+        self.assertEqual(
+            [request["path"] for request in transport.requests],
+            ["/ip/neighbor", "/interface/bridge/port"],
+        )
+        self.assertEqual(
+            result.to_dict()["data"]["interface_states"][0]["status"],
+            "inactive",
+        )
+
+    def test_preflight_routeros_operation_uses_live_interface_state(self):
+        transport = FakeRouterOSTransport(
+            [
+                [],
+                [
+                    {
+                        "interface": "ether2",
+                        "bridge": "bridge1",
+                        "disabled": "false",
+                        "inactive": "true",
+                        "status": "inactive",
+                    }
+                ],
+            ]
+        )
+        operation = build_operation(
+            "network.interfaces.disable",
+            target="edge-01",
+            name="ether2",
+        )
+
+        result = preflight_routeros_operation(RouterOSExecutor(transport), operation)
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.capability, "preflight")
+        self.assertEqual(result.error.code, "PREFLIGHT_RISK")
+        self.assertEqual(
+            result.data.risks,
+            ("edge-01 ether2 (bridge1) is inactive",),
+        )
+
+    def test_preflight_routeros_operation_accepts_network_device_alias(self):
+        transport = FakeRouterOSTransport(
+            [
+                [],
+                [
+                    {
+                        "interface": "ether2",
+                        "bridge": "bridge1",
+                        "inactive": "true",
+                        "status": "inactive",
+                    }
+                ],
+            ]
+        )
+        operation = build_operation(
+            "network.interfaces.disable",
+            target="router-01",
+            name="ether2",
+        )
+
+        result = preflight_routeros_operation(
+            RouterOSExecutor(transport),
+            operation,
+            network_device="edge-01",
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.target, "router-01")
+        self.assertEqual(result.data.target, "edge-01")
+        self.assertEqual(
+            result.data.risks,
+            ("edge-01 ether2 (bridge1) is inactive",),
+        )
+
+
 class RouterOSRestTransportTests(unittest.TestCase):
     def test_rest_transport_uses_ros_session_and_cleans_response_keys(self):
         response = FakeResponse(
@@ -302,6 +446,163 @@ class RouterOSRestTransportTests(unittest.TestCase):
             data,
             [{"id": "*1", "dst_address": "0.0.0.0/0", "routing_table": "main"}],
         )
+
+
+class RouterOSNormalizerTests(unittest.TestCase):
+    def test_neighbor_rows_become_device_records(self):
+        row = {
+            "id": "*2",
+            "address": "192.168.0.10",
+            "address4": "192.168.0.10",
+            "board": "RB941-2nD",
+            "discovered_by": "mndp",
+            "identity": "tower-cpe-01",
+            "interface": "wlan2",
+            "interface_name": "bridge1/ether2",
+            "mac_address": "74:4D:28:35:62:1B",
+            "platform": "MikroTik",
+            "software_id": "F1BY-SY6F",
+            "version": "6.49.19 (stable)",
+        }
+
+        devices = routeros_neighbors_to_devices([row])
+
+        self.assertEqual(len(devices), 1)
+        self.assertEqual(devices[0].name, "tower-cpe-01")
+        self.assertEqual(devices[0].host, "192.168.0.10")
+        self.assertEqual(devices[0].mac, "74:4D:28:35:62:1B")
+        self.assertEqual(devices[0].serial, "F1BY-SY6F")
+        self.assertEqual(devices[0].vendor, "MikroTik")
+        self.assertIn("routeros:mndp/identity/tower-cpe-01", devices[0].identifiers)
+
+    def test_neighbor_rows_become_attachment_records(self):
+        row = {
+            "address4": "192.168.0.10",
+            "identity": "tower-cpe-01",
+            "interface": "wlan2",
+            "interface_name": "bridge1/ether2",
+            "mac_address": "74:4D:28:35:62:1B",
+        }
+
+        attachments = routeros_neighbors_to_attachments([row], "router-01")
+
+        self.assertEqual(len(attachments), 1)
+        self.assertEqual(attachments[0].network_device, "router-01")
+        self.assertEqual(attachments[0].interface, "ether2")
+        self.assertEqual(attachments[0].source, "routeros:/ip/neighbor")
+        self.assertEqual(attachments[0].device.name, "tower-cpe-01")
+
+    def test_neighbor_rows_normalize_bridge_member_interface_pairs(self):
+        row = {
+            "interface": "ether4,bridge1",
+            "mac_address": "2C:F0:5D:DD:59:65",
+        }
+
+        attachments = routeros_neighbors_to_attachments([row], "router-01")
+
+        self.assertEqual(len(attachments), 1)
+        self.assertEqual(attachments[0].interface, "ether4")
+        self.assertEqual(attachments[0].metadata["interface"], "ether4,bridge1")
+
+    def test_arp_rows_become_device_and_attachment_records(self):
+        row = {
+            "address": "10.20.30.45",
+            "mac_address": "AA:BB:CC:DD:EE:01",
+            "interface": "bridge-customers",
+            "dynamic": "true",
+        }
+
+        devices = routeros_arp_to_devices([row])
+        attachments = routeros_arp_to_attachments([row], "tower-router-03")
+
+        self.assertEqual(devices[0].host, "10.20.30.45")
+        self.assertEqual(devices[0].mac, "AA:BB:CC:DD:EE:01")
+        self.assertEqual(attachments[0].network_device, "tower-router-03")
+        self.assertEqual(attachments[0].interface, "bridge-customers")
+        self.assertEqual(attachments[0].source, "routeros:/ip/arp")
+
+    def test_bridge_host_rows_become_attachment_records(self):
+        row = {
+            "mac_address": "AA:BB:CC:DD:EE:01",
+            "interface": "ether4",
+            "bridge": "bridge1",
+            "vid": "10",
+        }
+
+        attachments = routeros_bridge_hosts_to_attachments([row], "poe-switch-01")
+
+        self.assertEqual(len(attachments), 1)
+        self.assertEqual(attachments[0].device.mac, "AA:BB:CC:DD:EE:01")
+        self.assertEqual(attachments[0].interface, "ether4")
+        self.assertEqual(attachments[0].metadata["vid"], "10")
+
+    def test_bridge_port_rows_become_interface_state_records(self):
+        row = {
+            "id": "*1",
+            "interface": "ether2",
+            "bridge": "bridge1",
+            "disabled": "false",
+            "inactive": "true",
+            "status": "inactive",
+            "hw": "yes",
+        }
+
+        states = routeros_bridge_ports_to_interface_states([row], "poe-switch-01")
+
+        self.assertEqual(len(states), 1)
+        self.assertEqual(states[0].network_device, "poe-switch-01")
+        self.assertEqual(states[0].interface, "ether2")
+        self.assertEqual(states[0].scope, "bridge1")
+        self.assertFalse(states[0].disabled)
+        self.assertTrue(states[0].inactive)
+        self.assertFalse(states[0].running)
+        self.assertEqual(states[0].status, "inactive")
+        self.assertEqual(states[0].source, "routeros:/interface/bridge/port")
+
+    def test_bridge_port_running_can_be_derived_from_status(self):
+        row = {
+            "interface": "wlan3",
+            "bridge": "bridge1",
+            "disabled": "false",
+            "status": "in-bridge",
+            "forwarding": "true",
+        }
+
+        states = routeros_bridge_ports_to_interface_states([row], "poe-switch-01")
+
+        self.assertFalse(states[0].inactive)
+        self.assertTrue(states[0].running)
+        self.assertEqual(states[0].status, "in-bridge")
+        self.assertTrue(states[0].forwarding)
+
+    def test_routeros_attachments_feed_preflight(self):
+        operation = build_operation(
+            "network.interfaces.disable",
+            target="poe-switch-01",
+            name="ether1",
+        )
+        expected = [
+            AttachmentRecord(
+                device=DeviceRecord(name="device1", mac="AA:BB:CC:DD:EE:01"),
+                network_device="poe-switch-01",
+                interface="ether1",
+            )
+        ]
+        observed = routeros_bridge_hosts_to_attachments(
+            [
+                {
+                    "mac_address": "AA:BB:CC:DD:EE:01",
+                    "interface": "ether4",
+                }
+            ],
+            "poe-switch-01",
+        )
+
+        report = preflight_interface_operation(operation, expected, observed)
+
+        self.assertFalse(report.ok)
+        self.assertIn("device1 expected on poe-switch-01 ether1", report.risks[0])
+        self.assertIn("but observed on poe-switch-01 ether4", report.risks[0])
 
 
 if __name__ == "__main__":

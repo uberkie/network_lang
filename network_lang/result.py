@@ -39,8 +39,18 @@ class OperationResult:
             "target": self.target,
             "capability": self.capability,
             "adapter": self.adapter,
-            "data": self.data,
+            "data": _serializable(self.data),
             "warnings": list(self.warnings),
             "error": self.error.to_dict() if self.error else None,
             "raw_ref": self.raw_ref,
         }
+
+
+def _serializable(value: Any) -> Any:
+    if hasattr(value, "to_dict") and callable(value.to_dict):
+        return value.to_dict()
+    if isinstance(value, dict):
+        return {key: _serializable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_serializable(item) for item in value]
+    return value
