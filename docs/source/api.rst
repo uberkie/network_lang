@@ -119,7 +119,7 @@ Targets and Inventory
 .. autoexception:: network_lang.TargetResolutionError
 
 .. autoclass:: network_lang.TargetDevice
-   :members: execute, operation, collect_topology, preflight, to_dict
+   :members: execute, operation, collect_topology, preflight, graph, to_dict
 
 Reconciliation
 --------------
@@ -203,6 +203,8 @@ Graphing and Exporters
 
 Simple operator-facing graphs can be built from records and written directly
 to standalone HTML files.
+
+.. autofunction:: network_lang.graph_operation
 
 .. autofunction:: network_lang.line_graph
 

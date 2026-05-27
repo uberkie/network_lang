@@ -8,6 +8,7 @@ build/
 docs/build/
 /flowcollector
 /flows.jsonl
+/*.html
 *.egg-info/
 .idea/
 *:Zone.Identifier

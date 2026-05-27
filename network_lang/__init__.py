@@ -33,6 +33,7 @@ from .graphing import (
     counter_rate_records,
     line_graph,
 )
+from .graph_client import graph_operation
 from .model import Operation, SourceSpan
 from .parser import ParseError, parse_file, parse_text
 from .reconcile import DeviceMatch, DeviceRecord, ReconciliationReport, reconcile_devices
@@ -73,6 +74,7 @@ __all__ = [
     "BarGraph",
     "GraphPoint",
     "GraphSeries",
+    "graph_operation",
     "LineGraph",
     "FlowReconAction",
     "FlowReconFinding",

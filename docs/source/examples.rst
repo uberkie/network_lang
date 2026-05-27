@@ -257,71 +257,50 @@ Edit the VLAN id of the previously created VLAN.
 Graph RX Errors
 ---------------
 
-Build a quick standalone HTML graph from a live operation result. When ``x`` is
-omitted, ``line_graph`` treats the result as a current snapshot and adds the
-sample timestamp for you.
+Build a quick standalone HTML graph from a live operation result. Device graph
+helpers delegate graph-specific defaults, such as RouterOS interface grouping
+and byte-counter rates, to the adapter.
 
 .. code-block:: python
 
-   from network_lang.graphing import bar_graph, counter_rate_records, line_graph
    from network_lang.exporters import to_html
 
-   result = device.execute(
-       device.operation(
-           "network.interfaces.list",
-           match={"running": "true", "slave": "true"},
-       )
-   )
-
-   graph = line_graph(
-       result,
+   graph = device.graph(
+       "network.interfaces.list",
        y="rx_errors",
-       group_by="interface",
+       match={"running": "true", "slave": "true"},
        title="RX Errors by Interface",
    )
    to_html(graph, "rx_errors.html")
 
-   routes = device.execute(
-       device.operation("network.routes.list", match={"dynamic": "true"})
-   )
-   to_html(
-       bar_graph(routes, x="gateway", title="Dynamic Routes by Gateway"),
-       "routes_by_gateway.html",
-   )
-
-For live device data, a single operation result is a snapshot. Use a bar graph
-to compare interfaces at one instant, or collect multiple timestamped samples
-before using a line graph.
-
-For traffic counters, graph the rate instead of the raw cumulative value:
+For traffic counters, ask for the operator-facing rate field. The RouterOS
+adapter samples ``rx_byte`` and ``tx_byte`` and produces ``rx_mbps`` and
+``tx_mbps``.
 
 .. code-block:: python
 
-   rated = counter_rate_records(
-       sampled_records,
-       counters=("rx_byte", "tx_byte"),
-       group_by="interface",
-       scale=0.000008,
-       suffix="_mbps",
-   )
-
    to_html(
-       line_graph(
-           rated,
-           x="timestamp",
+       device.graph(
+           "network.interfaces.list",
            y=("rx_mbps", "tx_mbps"),
-           group_by="interface",
+           samples=12,
+           interval=5,
            title="Interface Mbps",
        ),
        "interface_mbps.html",
    )
 
-The ``graph_html.py`` helper applies that conversion automatically for byte
-counters when more than one sample is collected:
+.. image:: ../media/graph.png
+   :width: 800
+   :alt: Interface Mbps graph
+   :align: center
+
+The ``graph_html.py`` example uses the same adapter-backed path:
 
 .. code-block:: bash
 
-   python3 graph_html.py --metric rx_byte,tx_byte --samples 12 --interval 5 --output interface_mbps.html
+   python3 graph_html.py
+
 
 NetFlow Envelope Reconciliation
 -------------------------------

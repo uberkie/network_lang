@@ -1258,6 +1258,16 @@ INTERFACE_KEY_MAP = {
     "vlan_id": "vlan-id",
 }
 
+ROUTEROS_GRAPH_RATE_FIELDS = {
+    "rx_mbps": "rx_byte",
+    "tx_mbps": "tx_byte",
+}
+
+ROUTEROS_GRAPH_COUNTER_FIELDS = {
+    "rx_byte": "rx_mbps",
+    "tx_byte": "tx_mbps",
+}
+
 FILTER_KEY_MAP = {
     **ROUTE_KEY_MAP,
     **FIREWALL_RULE_KEY_MAP,
@@ -1267,6 +1277,83 @@ FILTER_KEY_MAP = {
     **PPP_KEY_MAP,
     **INTERFACE_KEY_MAP,
 }
+
+
+def routeros_default_graph_group_by(operation_name: str) -> str | None:
+    if operation_name.startswith("network.interfaces"):
+        return "interface"
+    return None
+
+
+def routeros_prepare_graph_records(
+    records: Iterable[dict[str, Any]],
+    *,
+    y: Any,
+    x: str = "timestamp",
+    group_by: Any = None,
+    samples: int = 1,
+    kind: str = "line",
+    rate: bool | None = None,
+) -> tuple[tuple[dict[str, Any], ...], Any]:
+    metrics = _graph_fields(y)
+    output_metrics: list[Any] = []
+    counters: list[str] = []
+
+    for metric in metrics:
+        if not isinstance(metric, str):
+            output_metrics.append(metric)
+            continue
+
+        normalized = metric.replace("-", "_")
+        counter = ROUTEROS_GRAPH_RATE_FIELDS.get(normalized)
+        if counter:
+            counters.append(counter)
+            output_metrics.append(normalized)
+            continue
+
+        output = ROUTEROS_GRAPH_COUNTER_FIELDS.get(normalized)
+        if kind == "line" and samples > 1 and output and rate is not False:
+            counters.append(normalized)
+            output_metrics.append(output)
+            continue
+
+        output_metrics.append(metric)
+
+    if counters:
+        if samples < 2:
+            raise ValueError("rate graph metrics need at least 2 samples")
+        from ..graphing import counter_rate_records
+
+        records = counter_rate_records(
+            records,
+            counters=tuple(dict.fromkeys(counters)),
+            group_by=group_by,
+            x=x,
+            scale=0.000008,
+            suffix="_mbps",
+        )
+    else:
+        records = tuple(records)
+
+    return records, _graph_field_value(output_metrics)
+
+
+def _graph_fields(value: Any) -> tuple[Any, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        fields = tuple(part.strip() for part in value.split(",") if part.strip())
+        return fields or (value,)
+    try:
+        return tuple(value)
+    except TypeError:
+        return (value,)
+
+
+def _graph_field_value(fields: list[Any]) -> Any:
+    if len(fields) == 1:
+        return fields[0]
+    return tuple(fields)
 
 
 def _get(

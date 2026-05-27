@@ -88,63 +88,41 @@ for step in plan.steps:
 
 ```python
 from network_lang import target_device
-from network_lang.graphing import bar_graph, counter_rate_records, line_graph
 from network_lang.exporters import to_html
 
 device = target_device("edge-01")
-result = device.execute(
-    device.operation(
-        "network.interfaces.list",
-        match={"running": "true", "slave": "true"},
-    )
-)
-
-graph = line_graph(
-    result,
+graph = device.graph(
+    "network.interfaces.list",
     y="rx_errors",
-    group_by="interface",
+    match={"running": "true", "slave": "true"},
     title="RX Errors by Interface",
 )
 
 to_html(graph, "rx_errors.html")
 ```
 
-Categorical snapshots can be counted as bars:
+Traffic counters are adapter-normalized. For RouterOS, asking for Mbps makes the
+adapter sample byte counters and graph rates:
 
 ```python
-routes = device.execute(device.operation("network.routes.list", match={"dynamic": "true"}))
 to_html(
-    bar_graph(routes, x="gateway", title="Dynamic Routes by Gateway"),
-    "routes_by_gateway.html",
-)
-```
-
-For a real line trend, collect more than one sample and keep the timestamp on
-each row. A single live result is a snapshot, so a bar graph is usually the
-right shape for comparing interfaces at that instant.
-
-Byte counters should be graphed as rates. ``counter_rate_records`` turns
-sampled ``rx_byte`` and ``tx_byte`` counters into Mbps fields:
-
-```python
-rated = counter_rate_records(
-    sampled_records,
-    counters=("rx_byte", "tx_byte"),
-    group_by="interface",
-    scale=0.000008,
-    suffix="_mbps",
-)
-to_html(
-    line_graph(rated, x="timestamp", y=("rx_mbps", "tx_mbps"), group_by="interface"),
+    device.graph(
+        "network.interfaces.list",
+        y=("rx_mbps", "tx_mbps"),
+        samples=12,
+        interval=5,
+        title="Interface Mbps",
+    ),
     "interface_mbps.html",
 )
 ```
 
-The included helper script does this automatically for byte counters when more
-than one sample is collected:
+![Interface Mbps graph](./docs/media/graph.png)
+
+The included `graph_html.py` example uses the same adapter-backed path:
 
 ```bash
-python3 graph_html.py --metric rx_byte,tx_byte --samples 12 --interval 5 --output interface_mbps.html
+python3 graph_html.py
 ```
 
 ## Operation Shape
@@ -247,51 +225,56 @@ the current working directory.
 ```json
 [
     {
-        "id": "1",
+        "id": "edge-01",
         "name": "edge-01",
-        "url": "https://192.168.4.1/",
+        "url": "https://192.0.2.10/",
         "username": "admin",
-        "password": "admin",
+        "password": "change-me",
+        "vendor": "mikrotik",
+        "platform": "routeros",
+        "transport": "rest",
+        "secure": false,
         "groups": ["edge-routers"],
         "interfaces": [
             {
-                "name": "veth1",
-                "ip_address": "192.168.4.1/24"  
-
-            },
-            {
-                "name": "veth2",
-                "ip_address": "192.168.4.2/24" 
-            }             
-        ]
-    },
-    {
-        "id": "2",
-        "name": "edge-02",
-        "url": "https://192.168.4.100/",
-        "username": "admin",
-        "password": "admin",
-        "groups": ["edge-routers"],
-        "interfaces": [
-            {
-                "name": "veth1",
-                "ip_address": "192.168.4.100/24"  
-
+                "name": "bridge1",
+                "ip_address": "192.0.2.10/24"
             }
         ]
     },
     {
-        "id": "3",
-        "name": "client-01",
-        "url": "https://192.168.4.240/",
+        "id": "edge-02",
+        "name": "edge-02",
+        "url": "https://192.0.2.11/",
         "username": "admin",
-        "password": "admin",
+        "password": "change-me",
+        "vendor": "mikrotik",
+        "platform": "routeros",
+        "transport": "rest",
+        "secure": false,
+        "groups": ["edge-routers"],
+        "interfaces": [
+            {
+                "name": "bridge1",
+                "ip_address": "192.0.2.11/24"
+            }
+        ]
+    },
+    {
+        "id": "client-01",
+        "name": "client-01",
+        "url": "https://198.51.100.20/",
+        "username": "admin",
+        "password": "change-me",
+        "vendor": "mikrotik",
+        "platform": "routeros",
+        "transport": "rest",
+        "secure": false,
         "groups": ["CPE-devices"],
         "interfaces": [
             {
-                "name": "veth1",
-                "ip_address": "192.168.4.240/24"  
-
+                "name": "ether1",
+                "ip_address": "10.20.30.45/32"
             }
         ]
     }
@@ -358,14 +341,14 @@ Each JSONL row has the normal device fields plus flow metadata:
 
 ```json
 {
-  "host": "192.168.4.240",
+  "host": "10.20.30.45",
   "source": "netflow:v5",
   "identifiers": [],
   "metadata": {
-    "exporter": "192.168.4.1",
+    "exporter": "192.0.2.10",
     "direction": "src",
     "peer_host": "8.8.8.8",
-    "src_host": "192.168.4.240",
+    "src_host": "10.20.30.45",
     "dst_host": "8.8.8.8",
     "src_port": 42015,
     "dst_port": 53,
@@ -407,10 +390,10 @@ Infrastructure observed: 1
 External peers ignored: 9
 
 Matched customer endpoints:
-- 192.168.4.240 score=95 source=netflow:v5 exporter=192.168.4.1 interface=8
+- 10.20.30.45 score=95 source=netflow:v5 exporter=192.0.2.10 interface=8
 
 Infrastructure observed:
-- 192.168.4.100 source=netflow:v5 exporter=192.168.4.1 interface=8
+- 192.0.2.11 source=netflow:v5 exporter=192.0.2.10 interface=8
 ```
 
 ## Documentation
@@ -439,3 +422,7 @@ Run the test suite with:
 ```sh
 python3 -m unittest discover -s tests
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

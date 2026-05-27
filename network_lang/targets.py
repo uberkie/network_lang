@@ -48,6 +48,11 @@ class TargetDevice:
     ) -> OperationResult:
         return preflight_operation(self, operation, expected=expected, **params)
 
+    def graph(self, operation_name: str, **params: Any) -> Any:
+        from .graph_client import graph_operation
+
+        return graph_operation(self, operation_name, **params)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -274,7 +279,7 @@ def _routeros_target_device(
         raise TargetResolutionError(f"target {requested_target!r} does not have a URL")
 
     username = _string(record.get("username")) or "admin"
-    password = _string(record.get("password")) or "admin"
+    password = _string(record.get("password")) or ""
     verify_tls = _bool(record.get("secure"), default=secure if secure is not None else False)
 
     ros = Ros(url, username, password, secure=verify_tls)

@@ -12,6 +12,9 @@ license = { text = "MIT" }
 authors = [
   { name = "Unified Network Syntax contributors" }
 ]
+dependencies = [
+  "requests>=2",
+]
 
 [project.scripts]
 uns = "network_lang.cli:main"

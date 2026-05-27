@@ -30,9 +30,9 @@ RouterOS target records commonly include:
 ```json
 {
   "name": "edge-01",
-  "url": "https://192.168.88.1/",
+  "url": "https://192.0.2.10/",
   "username": "admin",
-  "password": "password",
+  "password": "change-me",
   "vendor": "mikrotik",
   "platform": "routeros",
   "transport": "rest",
@@ -49,7 +49,7 @@ are used:
 | `platform` | `routeros` |
 | `transport` | `rest` |
 | `username` | `admin` |
-| `password` | `admin` |
+| `password` | empty string |
 | `secure` | `false`, unless `secure=True` is passed |
 
 Do not commit real production passwords into the sample inventory. Use a local
@@ -100,6 +100,7 @@ The object exposes a small convenience API:
 | `execute(operation)` | Execute an already-built operation. |
 | `collect_topology()` | Collect RouterOS topology observations. |
 | `preflight(operation, **params)` | Collect topology and preflight an operation. |
+| `graph(operation_name, **params)` | Collect operation samples and build an adapter-normalized graph. |
 
 Example:
 
@@ -128,12 +129,12 @@ but they are not yet wired into `target_device()`.
 
 ## Documentation
 
-- [Sphinx documentation index](docs/source/index.rst)
-- [Getting started](docs/getting-started.md)
-- [Operation model](docs/operations.md)
-- [Adapters](docs/adapters.md)
-- [Inventory and targets](docs/inventory.md)
-- [Topology, reconciliation, and preflight](docs/topology-preflight.md)
-- [Flow collector](docs/flowcollector.md)
-- [Syntax v0 reference](docs/syntax-v0.md)
-- [Example operations](examples/operations.uns)
+- [Sphinx documentation index](source/index.rst)
+- [Getting started](getting-started.md)
+- [Operation model](operations.md)
+- [Adapters](adapters.md)
+- [Inventory and targets](inventory.md)
+- [Topology, reconciliation, and preflight](topology-preflight.md)
+- [Flow collector](source/flowcollector.rst)
+- [Syntax v0 reference](syntax-v0.md)
+- [Example operations](../examples/operations.uns)

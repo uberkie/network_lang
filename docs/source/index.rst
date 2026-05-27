@@ -21,6 +21,8 @@ What Works Today
 * Normalize RouterOS observations into inventory and topology records.
 * Reconcile expected devices or attachments against observed data.
 * Preflight risky interface operations against live topology observations.
+* Collect NetFlow v5 endpoint evidence with a lightweight Go collector.
+* Generate standalone HTML graphs from adapter-normalized operational samples.
 
 
 .. toctree::

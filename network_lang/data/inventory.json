@@ -1,50 +1,55 @@
 [
     {
-        "id": "1",
+        "id": "edge-01",
         "name": "edge-01",
-        "url": "https://192.168.4.1/",
+        "url": "https://192.0.2.10/",
         "username": "admin",
-        "password": "admin",
+        "password": "change-me",
+        "vendor": "mikrotik",
+        "platform": "routeros",
+        "transport": "rest",
+        "secure": false,
         "groups": ["edge-routers"],
         "interfaces": [
             {
-                "name": "veth1",
-                "ip_address": "192.168.4.1/24"  
-
-            },
-            {
-                "name": "veth2",
-                "ip_address": "192.168.4.2/24" 
-            }             
-        ]
-    },
-    {
-        "id": "2",
-        "name": "edge-02",
-        "url": "https://192.168.4.100/",
-        "username": "admin",
-        "password": "admin",
-        "groups": ["edge-routers"],
-        "interfaces": [
-            {
-                "name": "veth1",
-                "ip_address": "192.168.4.100/24"  
-
+                "name": "bridge1",
+                "ip_address": "192.0.2.10/24"
             }
         ]
     },
     {
-        "id": "3",
-        "name": "client-01",
-        "url": "https://192.168.4.240/",
+        "id": "edge-02",
+        "name": "edge-02",
+        "url": "https://192.0.2.11/",
         "username": "admin",
-        "password": "admin",
+        "password": "change-me",
+        "vendor": "mikrotik",
+        "platform": "routeros",
+        "transport": "rest",
+        "secure": false,
+        "groups": ["edge-routers"],
+        "interfaces": [
+            {
+                "name": "bridge1",
+                "ip_address": "192.0.2.11/24"
+            }
+        ]
+    },
+    {
+        "id": "client-01",
+        "name": "client-01",
+        "url": "https://198.51.100.20/",
+        "username": "admin",
+        "password": "change-me",
+        "vendor": "mikrotik",
+        "platform": "routeros",
+        "transport": "rest",
+        "secure": false,
         "groups": ["CPE-devices"],
         "interfaces": [
             {
-                "name": "veth1",
-                "ip_address": "192.168.4.240/24"  
-
+                "name": "ether1",
+                "ip_address": "10.20.30.45/32"
             }
         ]
     }

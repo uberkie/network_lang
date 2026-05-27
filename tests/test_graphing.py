@@ -4,12 +4,22 @@ from pathlib import Path
 
 from network_lang import (
     OperationResult,
+    TargetDevice,
     bar_graph,
     counter_rate_field_name,
     counter_rate_records,
     line_graph,
     to_html,
 )
+from network_lang.adapters import routeros_prepare_graph_records
+
+
+class FakeGraphExecutor:
+    def __init__(self, responses):
+        self.responses = list(responses)
+
+    def execute(self, operation):
+        return self.responses.pop(0)
 
 
 class GraphingTests(unittest.TestCase):
@@ -315,6 +325,55 @@ class GraphingTests(unittest.TestCase):
                 ("ether1", 30, 100.0),
                 ("ether2", 10, 100.0),
             ],
+        )
+
+    def test_routeros_adapter_prepares_counter_rates_for_graphs(self):
+        records = [
+            {"timestamp": 0, "interface": "ether1", "rx_byte": 1000, "tx_byte": 2000},
+            {"timestamp": 10, "interface": "ether1", "rx_byte": 11000, "tx_byte": 22000},
+        ]
+
+        rated, y = routeros_prepare_graph_records(
+            records,
+            y=("rx_byte", "tx_byte"),
+            group_by="interface",
+            samples=2,
+            kind="line",
+        )
+
+        self.assertEqual(y, ("rx_mbps", "tx_mbps"))
+        self.assertAlmostEqual(rated[0]["rx_mbps"], 0.008)
+        self.assertAlmostEqual(rated[0]["tx_mbps"], 0.016)
+
+    def test_target_device_graph_uses_adapter_defaults(self):
+        device = TargetDevice(
+            name="edge-01",
+            url="https://192.0.2.1/",
+            vendor="mikrotik",
+            platform="routeros",
+            transport="rest",
+            executor=FakeGraphExecutor(
+                [
+                    OperationResult(
+                        ok=True,
+                        operation="network.interfaces.list",
+                        target="edge-01",
+                        capability="supported",
+                        adapter={"vendor": "mikrotik"},
+                        data=[{"name": "ether1", "rx_errors": 2}],
+                    )
+                ]
+            ),
+        )
+
+        graph = device.graph("network.interfaces.list", y="rx_errors")
+
+        self.assertEqual(graph.kind, "bar")
+        self.assertEqual(graph.x, "interface")
+        self.assertEqual(graph.group_by, None)
+        self.assertEqual(
+            [(point.x, point.y) for point in graph.series[0].points],
+            [("ether1", 2.0)],
         )
 
     def test_bar_graph_counts_categorical_operation_result_fields(self):

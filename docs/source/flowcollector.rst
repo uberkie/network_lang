@@ -145,10 +145,10 @@ That produces an operator-facing summary:
    External peers ignored: 9
 
    Matched customer endpoints:
-   - 192.168.4.240 score=95 source=netflow:v5 exporter=192.168.4.1 interface=8
+   - 10.20.30.45 score=95 source=netflow:v5 exporter=192.0.2.10 interface=8
 
    Infrastructure observed:
-   - 192.168.4.100 source=netflow:v5 exporter=192.168.4.1 interface=8
+   - 192.0.2.11 source=netflow:v5 exporter=192.0.2.10 interface=8
 
 Known infrastructure can be tagged so it does not receive the
 ``unknown_internal`` flow class:
@@ -158,7 +158,7 @@ Known infrastructure can be tagged so it does not receive the
    observed = load_flow_devices(
        "flows.jsonl",
        scope="internal",
-       known_infrastructure=("192.168.4.100",),
+       known_infrastructure=("192.0.2.11",),
    )
 
 Endpoint Classification

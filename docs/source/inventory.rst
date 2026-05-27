@@ -34,9 +34,9 @@ RouterOS target records commonly include:
 
    {
      "name": "edge-01",
-     "url": "https://192.168.88.1/",
+     "url": "https://192.0.2.10/",
      "username": "admin",
-     "password": "password",
+     "password": "change-me",
      "vendor": "mikrotik",
      "platform": "routeros",
      "transport": "rest",
@@ -60,7 +60,7 @@ are used:
    * - ``username``
      - ``admin``
    * - ``password``
-     - ``admin``
+     - empty string
    * - ``secure``
      - ``false``, unless ``secure=True`` is passed
 
@@ -121,6 +121,8 @@ The object exposes a small convenience API:
      - Collect RouterOS topology observations.
    * - ``preflight(operation, **params)``
      - Collect topology and preflight an operation.
+   * - ``graph(operation_name, **params)``
+     - Collect operation samples and build an adapter-normalized graph.
 
 Example:
 
