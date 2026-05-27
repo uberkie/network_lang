@@ -254,6 +254,75 @@ Edit the VLAN id of the previously created VLAN.
            sort_dicts=False,
        )
 
+Graph RX Errors
+---------------
+
+Build a quick standalone HTML graph from a live operation result. When ``x`` is
+omitted, ``line_graph`` treats the result as a current snapshot and adds the
+sample timestamp for you.
+
+.. code-block:: python
+
+   from network_lang.graphing import bar_graph, counter_rate_records, line_graph
+   from network_lang.exporters import to_html
+
+   result = device.execute(
+       device.operation(
+           "network.interfaces.list",
+           match={"running": "true", "slave": "true"},
+       )
+   )
+
+   graph = line_graph(
+       result,
+       y="rx_errors",
+       group_by="interface",
+       title="RX Errors by Interface",
+   )
+   to_html(graph, "rx_errors.html")
+
+   routes = device.execute(
+       device.operation("network.routes.list", match={"dynamic": "true"})
+   )
+   to_html(
+       bar_graph(routes, x="gateway", title="Dynamic Routes by Gateway"),
+       "routes_by_gateway.html",
+   )
+
+For live device data, a single operation result is a snapshot. Use a bar graph
+to compare interfaces at one instant, or collect multiple timestamped samples
+before using a line graph.
+
+For traffic counters, graph the rate instead of the raw cumulative value:
+
+.. code-block:: python
+
+   rated = counter_rate_records(
+       sampled_records,
+       counters=("rx_byte", "tx_byte"),
+       group_by="interface",
+       scale=0.000008,
+       suffix="_mbps",
+   )
+
+   to_html(
+       line_graph(
+           rated,
+           x="timestamp",
+           y=("rx_mbps", "tx_mbps"),
+           group_by="interface",
+           title="Interface Mbps",
+       ),
+       "interface_mbps.html",
+   )
+
+The ``graph_html.py`` helper applies that conversion automatically for byte
+counters when more than one sample is collected:
+
+.. code-block:: bash
+
+   python3 graph_html.py --metric rx_byte,tx_byte --samples 12 --interval 5 --output interface_mbps.html
+
 NetFlow Envelope Reconciliation
 -------------------------------
 

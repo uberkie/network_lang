@@ -40,6 +40,8 @@ operator intent
 - Produce operator-facing flow reconciliation reports with deterministic counts,
   matched customer endpoint detail, infrastructure detail, and non-zero exit
   status when unknown internal hosts are observed.
+- Build lightweight standalone HTML line graphs from operational records with
+  a small Python API.
 
 ## Install
 
@@ -80,6 +82,69 @@ if diagnostics:
 plan = plan_routeros_operation(operation)
 for step in plan.steps:
     print(step.method, step.path, step.body)
+```
+
+## Quick Graph Example
+
+```python
+from network_lang import target_device
+from network_lang.graphing import bar_graph, counter_rate_records, line_graph
+from network_lang.exporters import to_html
+
+device = target_device("edge-01")
+result = device.execute(
+    device.operation(
+        "network.interfaces.list",
+        match={"running": "true", "slave": "true"},
+    )
+)
+
+graph = line_graph(
+    result,
+    y="rx_errors",
+    group_by="interface",
+    title="RX Errors by Interface",
+)
+
+to_html(graph, "rx_errors.html")
+```
+
+Categorical snapshots can be counted as bars:
+
+```python
+routes = device.execute(device.operation("network.routes.list", match={"dynamic": "true"}))
+to_html(
+    bar_graph(routes, x="gateway", title="Dynamic Routes by Gateway"),
+    "routes_by_gateway.html",
+)
+```
+
+For a real line trend, collect more than one sample and keep the timestamp on
+each row. A single live result is a snapshot, so a bar graph is usually the
+right shape for comparing interfaces at that instant.
+
+Byte counters should be graphed as rates. ``counter_rate_records`` turns
+sampled ``rx_byte`` and ``tx_byte`` counters into Mbps fields:
+
+```python
+rated = counter_rate_records(
+    sampled_records,
+    counters=("rx_byte", "tx_byte"),
+    group_by="interface",
+    scale=0.000008,
+    suffix="_mbps",
+)
+to_html(
+    line_graph(rated, x="timestamp", y=("rx_mbps", "tx_mbps"), group_by="interface"),
+    "interface_mbps.html",
+)
+```
+
+The included helper script does this automatically for byte counters when more
+than one sample is collected:
+
+```bash
+python3 graph_html.py --metric rx_byte,tx_byte --samples 12 --interval 5 --output interface_mbps.html
 ```
 
 ## Operation Shape

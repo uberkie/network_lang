@@ -1,6 +1,7 @@
 """Reference parser for the Unified Network Syntax draft."""
 
 from .api import OperationBuilder, build_operation, network
+from .exporters import to_html
 from .flows import (
     FLOW_RECON_POLICY,
     FlowEnvelopeReport,
@@ -21,6 +22,16 @@ from .flows import (
     load_flow_devices,
     reconcile_flow_envelope,
     resolve_flow_target,
+)
+from .graphing import (
+    BarGraph,
+    GraphPoint,
+    GraphSeries,
+    LineGraph,
+    bar_graph,
+    counter_rate_field_name,
+    counter_rate_records,
+    line_graph,
 )
 from .model import Operation, SourceSpan
 from .parser import ParseError, parse_file, parse_text
@@ -59,6 +70,10 @@ __all__ = [
     "Diagnostic",
     "DuplicateAttachment",
     "FLOW_RECON_POLICY",
+    "BarGraph",
+    "GraphPoint",
+    "GraphSeries",
+    "LineGraph",
     "FlowReconAction",
     "FlowReconFinding",
     "FlowReconPolicyReport",
@@ -73,6 +88,7 @@ __all__ = [
     "FlowTargetResolution",
     "flow_records_to_devices",
     "InterfaceStateRecord",
+    "line_graph",
     "flow_observations_to_attachments",
     "flow_observations_to_devices",
     "load_flow_devices",
@@ -85,7 +101,10 @@ __all__ = [
     "TargetDevice",
     "TargetResolutionError",
     "build_operation",
+    "bar_graph",
     "collect_topology",
+    "counter_rate_field_name",
+    "counter_rate_records",
     "default_inventory_path",
     "load_inventory",
     "network",
@@ -100,6 +119,7 @@ __all__ = [
     "resolve_target",
     "resolve_flow_target",
     "target_device",
+    "to_html",
     "TopologyPreflightReport",
     "validate_operation",
     "validate_operations",

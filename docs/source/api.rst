@@ -198,6 +198,34 @@ Flow Observations
 .. autoclass:: network_lang.FlowEnvelopeReport
    :members: ok, to_dict
 
+Graphing and Exporters
+----------------------
+
+Simple operator-facing graphs can be built from records and written directly
+to standalone HTML files.
+
+.. autofunction:: network_lang.line_graph
+
+.. autofunction:: network_lang.bar_graph
+
+.. autofunction:: network_lang.counter_rate_records
+
+.. autofunction:: network_lang.counter_rate_field_name
+
+.. autofunction:: network_lang.to_html
+
+.. autoclass:: network_lang.LineGraph
+   :members: to_dict
+
+.. autoclass:: network_lang.BarGraph
+   :members: to_dict
+
+.. autoclass:: network_lang.GraphSeries
+   :members: to_dict
+
+.. autoclass:: network_lang.GraphPoint
+   :members: to_dict
+
 RouterOS Adapter
 ----------------
 
