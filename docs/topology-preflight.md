@@ -256,7 +256,7 @@ device, interface, direction, and confidence.
 ## Documentation
 
 - [Sphinx documentation index](docs/source/index.rst)
-- [Getting started](docs/getting-started.md)
+- [Getting started](getting-started.md)
 - [Operation model](docs/operations.md)
 - [Adapters](docs/adapters.md)
 - [Inventory and targets](docs/inventory.md)
