@@ -177,7 +177,64 @@ else:
 ```
 
 By default, inventory is loaded from `network_lang/data/inventory.json` under
-the current working directory. Set `NETWORK_LANG_INVENTORY` or pass
+the current working directory.
+
+```json
+[
+    {
+        "id": "1",
+        "name": "edge-01",
+        "url": "https://192.168.4.1/",
+        "username": "admin",
+        "password": "admin",
+        "groups": ["edge-routers"],
+        "interfaces": [
+            {
+                "name": "veth1",
+                "ip_address": "192.168.4.1/24"  
+
+            },
+            {
+                "name": "veth2",
+                "ip_address": "192.168.4.2/24" 
+            }             
+        ]
+    },
+    {
+        "id": "2",
+        "name": "edge-02",
+        "url": "https://192.168.4.100/",
+        "username": "admin",
+        "password": "admin",
+        "groups": ["edge-routers"],
+        "interfaces": [
+            {
+                "name": "veth1",
+                "ip_address": "192.168.4.100/24"  
+
+            }
+        ]
+    },
+    {
+        "id": "3",
+        "name": "client-01",
+        "url": "https://192.168.4.240/",
+        "username": "admin",
+        "password": "admin",
+        "groups": ["CPE-devices"],
+        "interfaces": [
+            {
+                "name": "veth1",
+                "ip_address": "192.168.4.240/24"  
+
+            }
+        ]
+    }
+]
+```
+
+
+Set `NETWORK_LANG_INVENTORY` or pass
 `inventory_path=...` to use another file.
 
 ## Topology Preflight
