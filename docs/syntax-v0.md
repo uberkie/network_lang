@@ -206,3 +206,16 @@ secret     touches credentials, keys, or private config
 3. How much should the project reuse existing YANG models?
 4. Should the first prototype target one vendor first, such as MikroTik?
 5. Should adapters be local plugins, remote tools, or both?
+
+
+## Documentation
+
+- [Sphinx documentation index](docs/source/index.rst)
+- [Getting started](docs/getting-started.md)
+- [Operation model](docs/operations.md)
+- [Adapters](docs/adapters.md)
+- [Inventory and targets](docs/inventory.md)
+- [Topology, reconciliation, and preflight](docs/topology-preflight.md)
+- [Flow collector](docs/flowcollector.md)
+- [Syntax v0 reference](docs/syntax-v0.md)
+- [Example operations](examples/operations.uns)
