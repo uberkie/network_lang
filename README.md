@@ -32,7 +32,14 @@ operator intent
 - Reconcile expected devices or attachments against observed data.
 - Preflight risky interface operations against live or supplied topology
   observations.
-- Convert NetFlow-like observations into topology evidence.
+- Collect NetFlow v5 over UDP with a lightweight Go daemon and emit JSONL
+  device evidence.
+- Classify flow endpoints before reconciliation so internal devices,
+  infrastructure, public peers, exporters, and ignored peers are handled
+  separately.
+- Produce operator-facing flow reconciliation reports with deterministic counts,
+  matched customer endpoint detail, infrastructure detail, and non-zero exit
+  status when unknown internal hosts are observed.
 
 ## Install
 
@@ -191,6 +198,99 @@ if not preflight.ok:
     print(preflight.data.risks)
 ```
 
+## Flow Collector
+
+`flowcollector` is a lightweight Go daemon that listens for NetFlow v5 over UDP
+and writes `DeviceRecord`-shaped JSONL records. It intentionally does not do
+traffic analysis or enrichment; its job is to extract the default flow fields so
+the Python reconciliation layer can classify and report on observed endpoints.
+
+Build it from the repository root:
+
+```sh
+go build ./cmd/flowcollector
+```
+
+Run it on UDP/2055 and write both source and destination endpoints:
+
+```sh
+./flowcollector -listen :2055 -endpoint both -output flows.jsonl
+```
+
+During turn-up, enable packet debug and periodic status logs:
+
+```sh
+./flowcollector -listen :2055 -endpoint both -output flows.jsonl -debug -status 10s
+```
+
+For RouterOS traffic-flow export, point the router at the collector and use
+NetFlow v5:
+
+```text
+/ip traffic-flow set enabled=yes interfaces=all
+/ip traffic-flow target add address=<collector-ip> port=2055 version=5
+/ip traffic-flow target print detail
+```
+
+Each JSONL row has the normal device fields plus flow metadata:
+
+```json
+{
+  "host": "192.168.4.240",
+  "source": "netflow:v5",
+  "identifiers": [],
+  "metadata": {
+    "exporter": "192.168.4.1",
+    "direction": "src",
+    "peer_host": "8.8.8.8",
+    "src_host": "192.168.4.240",
+    "dst_host": "8.8.8.8",
+    "src_port": 42015,
+    "dst_port": 53,
+    "protocol": 17,
+    "bytes": 55,
+    "packets": 1,
+    "interface_index": 8
+  }
+}
+```
+
+Flow endpoint classification happens before source-of-truth reconciliation:
+
+```text
+customer_endpoint -> match_or_score
+unknown_internal  -> report
+private_internal  -> report
+public_external   -> ignore
+ignored_peer      -> ignore
+exporter          -> infrastructure
+known_infrastructure -> infrastructure
+```
+
+The bundled `flow_client.py` loads expected customer endpoints from
+`network_lang/data/inventory.json`, tags non-client inventory hosts as known
+infrastructure, loads `flows.jsonl`, and exits with status `1` when unknown
+internal hosts are present:
+
+```sh
+python3 flow_client.py
+```
+
+Example output:
+
+```text
+Unknown internal hosts observed: 0
+Matched customer endpoints: 1
+Infrastructure observed: 1
+External peers ignored: 9
+
+Matched customer endpoints:
+- 192.168.4.240 score=95 source=netflow:v5 exporter=192.168.4.1 interface=8
+
+Infrastructure observed:
+- 192.168.4.100 source=netflow:v5 exporter=192.168.4.1 interface=8
+```
+
 ## Documentation
 
 - [Sphinx documentation index](docs/source/index.rst)
@@ -199,6 +299,7 @@ if not preflight.ok:
 - [Adapters](docs/source/adapters.rst)
 - [Inventory and targets](docs/source/inventory.rst)
 - [Topology, reconciliation, and preflight](docs/source/topology-preflight.rst)
+- [Flow collector](docs/source/flowcollector.rst)
 - [Syntax v0 reference](docs/source/syntax-v0.rst)
 - [Example operations](examples/operations.uns)
 
