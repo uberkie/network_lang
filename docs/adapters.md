@@ -174,3 +174,15 @@ because airOS 6 uses the legacy login path.
 
 Operations that interrupt service, such as reboot and firmware install, include
 warnings in the returned plan.
+
+## Documentation
+
+- [Sphinx documentation index](docs/source/index.rst)
+- [Getting started](docs/getting-started.md)
+- [Operation model](docs/operations.md)
+- [Adapters](docs/adapters.md)
+- [Inventory and targets](docs/inventory.md)
+- [Topology, reconciliation, and preflight](docs/topology-preflight.md)
+- [Flow collector](docs/flowcollector.md)
+- [Syntax v0 reference](docs/syntax-v0.md)
+- [Example operations](examples/operations.uns)
