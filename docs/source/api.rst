@@ -163,11 +163,40 @@ Flow Observations
 
 .. autofunction:: network_lang.resolve_flow_target
 
+.. autofunction:: network_lang.classify_flow_device
+
+.. autofunction:: network_lang.flow_records_to_devices
+
+.. autofunction:: network_lang.load_flow_devices
+
+``network_lang.FLOW_RECON_POLICY``
+   Default class-to-action mapping used by
+   :func:`network_lang.apply_flow_recon_policy`.
+
+.. autofunction:: network_lang.apply_flow_recon_policy
+
+.. autofunction:: network_lang.reconcile_flow_envelope
+
+.. autoclass:: network_lang.FlowReconFinding
+   :members: to_dict
+
+.. autoclass:: network_lang.FlowReconPolicyReport
+   :members: ok, exit_code, to_dict, to_text
+
+.. autoclass:: network_lang.FlowExpectation
+   :members: to_dict
+
 .. autoclass:: network_lang.FlowObservation
    :members: to_dict
 
 .. autoclass:: network_lang.FlowTargetResolution
    :members: to_dict
+
+.. autoclass:: network_lang.FlowSignalCheck
+   :members: to_dict
+
+.. autoclass:: network_lang.FlowEnvelopeReport
+   :members: ok, to_dict
 
 RouterOS Adapter
 ----------------

@@ -1,5 +1,7 @@
 # Unified Network Syntax
 
+The engineer’s job is to solve network problems, not repeatedly rebuild fragile tooling around already-solved access patterns. Unified Network Syntax treats SSH, API, SNMP, NETCONF, flow samples, and parser fallbacks as adapter concerns, so the operator can focus on intent, reconciliation, and safe action.
+
 Unified Network Syntax is a small Python reference implementation for a
 vendor-neutral network operation model. It lets operators describe intent once,
 validate that intent, and then translate it to device-specific adapters such as

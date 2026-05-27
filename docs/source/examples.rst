@@ -19,7 +19,12 @@ The examples share this setup. Write operations are planned by default. Set
    from dataclasses import asdict
    from pprint import pprint
 
-   from network_lang import target_device
+   from network_lang import (
+       FlowExpectation,
+       FlowObservation,
+       reconcile_flow_envelope,
+       target_device,
+   )
    from network_lang.adapters import plan_routeros_operation
 
    apply_changes = os.environ.get("NETWORK_LANG_APPLY", "").strip().lower() in {
@@ -248,3 +253,40 @@ Edit the VLAN id of the previously created VLAN.
            },
            sort_dicts=False,
        )
+
+NetFlow Envelope Reconciliation
+-------------------------------
+
+Reconcile identity, topology, and operational health signals from flow-derived
+evidence against an expected envelope.
+
+.. code-block:: python
+
+   expected = FlowExpectation(
+       target="customer0172",
+       network_device="tower-east",
+       interface="pppoe-customer0172",
+       envelope={
+           "rssi": (-65, -45),
+           "ccq": {"min": 80},
+           "mtu": 1500,
+           "rx_errors_delta": {"max": 0},
+           "traffic_mbps": (1, 20),
+       },
+   )
+   observed = FlowObservation(
+       exporter="tower-east",
+       src_host="10.20.30.45",
+       dst_host="8.8.8.8",
+       ingress_interface="pppoe-customer0172",
+       src_identifiers=("radius:user/customer0172",),
+       metadata={
+           "rssi": -78,
+           "ccq": 42,
+           "mtu": 1500,
+           "rx_errors_delta": 12,
+           "traffic_mbps": 0.4,
+       },
+   )
+   report = reconcile_flow_envelope(expected, [observed])
+   pprint(report.to_dict(), sort_dicts=False)

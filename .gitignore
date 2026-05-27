@@ -6,6 +6,8 @@ __pycache__/
 dist/
 build/
 docs/build/
+/flowcollector
+/flows.jsonl
 *.egg-info/
 .idea/
 *:Zone.Identifier

@@ -32,6 +32,7 @@ What Works Today
    inventory
    adapters
    examples
+   flowcollector
    topology-preflight
    cli
    syntax-v0
