@@ -510,6 +510,46 @@ def plan_routeros_operation(operation: Operation) -> RouterOSPlan:
     if operation.name == "network.system.identity.get":
         return _get(operation, "/system/identity")
 
+    ppp_command = _ppp_command_path(operation)
+    if ppp_command:
+        return _run(operation, ppp_command, _command_body(operation))
+
+    ppp_endpoint = _ppp_endpoint_path(operation)
+    if ppp_endpoint:
+        return _plan_ppp_endpoint(operation, ppp_endpoint)
+
+    radius_command = _radius_command_path(operation)
+    if radius_command:
+        return _run(operation, radius_command, _command_body(operation))
+
+    radius_endpoint = _radius_endpoint_path(operation)
+    if radius_endpoint:
+        return _plan_radius_endpoint(operation, radius_endpoint)
+
+    routing_command = _routing_command_path(operation)
+    if routing_command:
+        return _run(operation, routing_command, _command_body(operation))
+
+    routing_endpoint = _routing_endpoint_path(operation)
+    if routing_endpoint:
+        return _plan_routing_endpoint(operation, routing_endpoint)
+
+    ip_endpoint = _ip_endpoint_path(operation)
+    if ip_endpoint:
+        return _plan_ip_endpoint(operation, ip_endpoint)
+
+    ip_command = _ip_command_path(operation)
+    if ip_command:
+        return _run(operation, ip_command, _command_body(operation))
+
+    interface_endpoint = _interface_endpoint_path(operation)
+    if interface_endpoint:
+        return _plan_interface_endpoint(operation, interface_endpoint)
+
+    interface_command = _interface_command_path(operation)
+    if interface_command:
+        return _run(operation, interface_command, _command_body(operation))
+
     if operation.name == "network.neighbors.list":
         return _get(operation, "/ip/neighbor", _filters(operation))
 
@@ -528,23 +568,6 @@ def plan_routeros_operation(operation: Operation) -> RouterOSPlan:
             "PUT",
             "/interface/bridge/port",
             _translate_keys(port, BRIDGE_PORT_KEY_MAP),
-        )
-
-    if operation.name == "network.interfaces.list":
-        return _get(operation, "/interface", _filters(operation))
-
-    if operation.name == "network.interfaces.get":
-        filters = _filters(operation)
-        name = operation.params.get("name")
-        if isinstance(name, str):
-            filters["name"] = name
-        return _get(operation, "/interface", filters)
-
-    if operation.name in {"network.interfaces.disable", "network.interfaces.enable"}:
-        return _toggle_by_id_or_match(
-            operation,
-            "/interface",
-            disabled=operation.action == "disable",
         )
 
     if operation.name == "network.routes.list":
@@ -618,6 +641,424 @@ def plan_routeros_operation(operation: Operation) -> RouterOSPlan:
     return _unsupported(operation, "operation is not mapped for RouterOS")
 
 
+PPP_ENDPOINTS = {
+    ("aaa",): "/ppp/aaa",
+    ("active",): "/ppp/active",
+    ("l2tp_secret",): "/ppp/l2tp-secret",
+    ("profile",): "/ppp/profile",
+    ("secret",): "/ppp/secret",
+}
+
+PPP_COMMANDS = {
+    ("export",): "/ppp/export",
+}
+
+
+def _ppp_endpoint_path(operation: Operation) -> str | None:
+    if operation.namespace != "network":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "ppp":
+        return None
+    return PPP_ENDPOINTS.get(operation.resource_path[1:])
+
+
+def _ppp_command_path(operation: Operation) -> str | None:
+    if operation.namespace != "network" or operation.action != "run":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "ppp":
+        return None
+
+    command = operation.resource_path[1:]
+    if command in PPP_COMMANDS:
+        return PPP_COMMANDS[command]
+    if len(command) < 2:
+        return None
+
+    endpoint = PPP_ENDPOINTS.get(command[:-1])
+    command_path = PPP_COMMANDS.get(command[-1:])
+    if endpoint and command_path:
+        return f"{endpoint}/{command_path.rsplit('/', 1)[-1]}"
+    return None
+
+
+def _plan_ppp_endpoint(operation: Operation, path: str) -> RouterOSPlan:
+    if operation.action == "list":
+        return _get(operation, path, _filters(operation))
+    if operation.action == "get":
+        return _get_by_id_or_match(operation, path)
+    if operation.action == "create":
+        body = _ppp_body(operation)
+        if not body:
+            return _unsupported(operation, "ppp endpoint create requires data params")
+        return _write(operation, "PUT", path, body)
+    if operation.action == "update":
+        body = _ppp_body(operation)
+        if not body:
+            return _unsupported(operation, "ppp endpoint update requires data params")
+        return _update_by_id_or_match(operation, path, body)
+    if operation.action == "delete":
+        return _delete_by_id_or_match(operation, path)
+    if operation.action in {"enable", "disable"}:
+        return _toggle_by_id_or_match(
+            operation,
+            path,
+            disabled=operation.action == "disable",
+        )
+    return _unsupported(
+        operation,
+        f"ppp endpoint does not support action {operation.action!r}",
+    )
+
+
+RADIUS_ENDPOINTS = {
+    (): "/radius",
+    ("incoming",): "/radius/incoming",
+}
+
+RADIUS_COMMANDS = {
+    ("add",): "/radius/add",
+    ("comment",): "/radius/comment",
+    ("disable",): "/radius/disable",
+    ("edit",): "/radius/edit",
+    ("enable",): "/radius/enable",
+    ("export",): "/radius/export",
+    ("find",): "/radius/find",
+    ("monitor",): "/radius/monitor",
+    ("move",): "/radius/move",
+    ("print",): "/radius/print",
+    ("remove",): "/radius/remove",
+    ("reset",): "/radius/reset",
+    ("reset_counters",): "/radius/reset-counters",
+    ("set",): "/radius/set",
+}
+
+
+def _radius_endpoint_path(operation: Operation) -> str | None:
+    if operation.namespace != "network":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "radius":
+        return None
+    return RADIUS_ENDPOINTS.get(operation.resource_path[1:])
+
+
+def _radius_command_path(operation: Operation) -> str | None:
+    if operation.namespace != "network" or operation.action != "run":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "radius":
+        return None
+
+    command = operation.resource_path[1:]
+    if command in RADIUS_COMMANDS:
+        return RADIUS_COMMANDS[command]
+    if len(command) < 2:
+        return None
+
+    endpoint = RADIUS_ENDPOINTS.get(command[:-1])
+    command_path = RADIUS_COMMANDS.get(command[-1:])
+    if endpoint and command_path:
+        return f"{endpoint}/{command_path.rsplit('/', 1)[-1]}"
+    return None
+
+
+def _plan_radius_endpoint(operation: Operation, path: str) -> RouterOSPlan:
+    if operation.action == "list":
+        return _get(operation, path, _filters(operation))
+    if operation.action == "get":
+        return _get_by_id_or_match(operation, path)
+    if operation.action == "create":
+        body = _radius_body(operation)
+        if not body:
+            return _unsupported(operation, "radius endpoint create requires data params")
+        return _write(operation, "PUT", path, body)
+    if operation.action == "update":
+        body = _radius_body(operation)
+        if not body:
+            return _unsupported(operation, "radius endpoint update requires data params")
+        return _update_by_id_or_match(operation, path, body)
+    if operation.action == "delete":
+        return _delete_by_id_or_match(operation, path)
+    if operation.action in {"enable", "disable"}:
+        return _toggle_by_id_or_match(
+            operation,
+            path,
+            disabled=operation.action == "disable",
+        )
+    return _unsupported(
+        operation,
+        f"radius endpoint does not support action {operation.action!r}",
+    )
+
+
+ROUTING_ENDPOINTS = {
+    ("bfd",): "/routing/bfd",
+    ("bgp",): "/routing/bgp",
+    ("fantasy",): "/routing/fantasy",
+    ("filter",): "/routing/filter",
+    ("gmp",): "/routing/gmp",
+    ("id",): "/routing/id",
+    ("igmp_proxy",): "/routing/igmp-proxy",
+    ("isis",): "/routing/isis",
+    ("nexthop",): "/routing/nexthop",
+    ("ospf",): "/routing/ospf",
+    ("pimsm",): "/routing/pimsm",
+    ("rip",): "/routing/rip",
+    ("route",): "/routing/route",
+    ("rpki",): "/routing/rpki",
+    ("rule",): "/routing/rule",
+    ("settings",): "/routing/settings",
+    ("stats",): "/routing/stats",
+    ("table",): "/routing/table",
+}
+
+ROUTING_COMMANDS = {
+    ("discourse",): "/routing/discourse",
+    ("export",): "/routing/export",
+    ("reinstall_fib",): "/routing/reinstall-fib",
+}
+
+
+def _routing_endpoint_path(operation: Operation) -> str | None:
+    if operation.namespace != "network":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "routing":
+        return None
+    return ROUTING_ENDPOINTS.get(operation.resource_path[1:])
+
+
+def _routing_command_path(operation: Operation) -> str | None:
+    if operation.namespace != "network" or operation.action != "run":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "routing":
+        return None
+    return ROUTING_COMMANDS.get(operation.resource_path[1:])
+
+
+def _plan_routing_endpoint(operation: Operation, path: str) -> RouterOSPlan:
+    if operation.action == "list":
+        return _get(operation, path, _filters(operation))
+    if operation.action == "get":
+        return _get_by_id_or_match(operation, path)
+    if operation.action == "create":
+        body = _routing_body(operation)
+        if not body:
+            return _unsupported(operation, "routing endpoint create requires data params")
+        return _write(operation, "PUT", path, body)
+    if operation.action == "update":
+        body = _routing_body(operation)
+        if not body:
+            return _unsupported(operation, "routing endpoint update requires data params")
+        return _update_by_id_or_match(operation, path, body)
+    if operation.action == "delete":
+        return _delete_by_id_or_match(operation, path)
+    if operation.action in {"enable", "disable"}:
+        return _toggle_by_id_or_match(
+            operation,
+            path,
+            disabled=operation.action == "disable",
+        )
+    return _unsupported(
+        operation,
+        f"routing endpoint does not support action {operation.action!r}",
+    )
+
+
+IP_ENDPOINTS = {
+    ("address",): "/ip/address",
+    ("arp",): "/ip/arp",
+    ("cloud",): "/ip/cloud",
+    ("dhcp_client",): "/ip/dhcp-client",
+    ("dhcp_relay",): "/ip/dhcp-relay",
+    ("dhcp_server",): "/ip/dhcp-server",
+    ("dns",): "/ip/dns",
+    ("firewall",): "/ip/firewall",
+    ("hotspot",): "/ip/hotspot",
+    ("ipsec",): "/ip/ipsec",
+    ("kid_control",): "/ip/kid-control",
+    ("media",): "/ip/media",
+    ("nat_pmp",): "/ip/nat-pmp",
+    ("neighbor",): "/ip/neighbor",
+    ("packing",): "/ip/packing",
+    ("pool",): "/ip/pool",
+    ("proxy",): "/ip/proxy",
+    ("route",): "/ip/route",
+    ("service",): "/ip/service",
+    ("settings",): "/ip/settings",
+    ("smb",): "/ip/smb",
+    ("socks",): "/ip/socks",
+    ("ssh",): "/ip/ssh",
+    ("tftp",): "/ip/tftp",
+    ("traffic_flow",): "/ip/traffic-flow",
+    ("upnp",): "/ip/upnp",
+    ("vrf",): "/ip/vrf",
+}
+
+IP_COMMANDS = {
+    ("export",): "/ip/export",
+}
+
+
+def _ip_endpoint_path(operation: Operation) -> str | None:
+    if operation.namespace != "network":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "ip":
+        return None
+    return IP_ENDPOINTS.get(operation.resource_path[1:])
+
+
+def _ip_command_path(operation: Operation) -> str | None:
+    if operation.namespace != "network" or operation.action != "run":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "ip":
+        return None
+    return IP_COMMANDS.get(operation.resource_path[1:])
+
+
+def _plan_ip_endpoint(operation: Operation, path: str) -> RouterOSPlan:
+    if operation.action == "list":
+        return _get(operation, path, _filters(operation))
+    if operation.action == "get":
+        return _get_by_id_or_match(operation, path)
+    if operation.action == "create":
+        body = _ip_body(operation)
+        if not body:
+            return _unsupported(operation, "ip endpoint create requires data params")
+        return _write(operation, "PUT", path, body)
+    if operation.action == "update":
+        body = _ip_body(operation)
+        if not body:
+            return _unsupported(operation, "ip endpoint update requires data params")
+        return _update_by_id_or_match(operation, path, body)
+    if operation.action == "delete":
+        return _delete_by_id_or_match(operation, path)
+    if operation.action in {"enable", "disable"}:
+        return _toggle_by_id_or_match(
+            operation,
+            path,
+            disabled=operation.action == "disable",
+        )
+    return _unsupported(
+        operation,
+        f"ip endpoint does not support action {operation.action!r}",
+    )
+
+
+INTERFACE_ENDPOINTS = {
+    (): "/interface",
+    ("six_to_four",): "/interface/6to4",
+    ("bonding",): "/interface/bonding",
+    ("bridge",): "/interface/bridge",
+    ("bridge", "hosts"): "/interface/bridge/host",
+    ("bridge", "ports"): "/interface/bridge/port",
+    ("detect_internet",): "/interface/detect-internet",
+    ("dot1x",): "/interface/dot1x",
+    ("eoip",): "/interface/eoip",
+    ("eoipv6",): "/interface/eoipv6",
+    ("ethernet",): "/interface/ethernet",
+    ("gre",): "/interface/gre",
+    ("gre6",): "/interface/gre6",
+    ("ipip",): "/interface/ipip",
+    ("ipipv6",): "/interface/ipipv6",
+    ("l2tp_client",): "/interface/l2tp-client",
+    ("l2tp_ether",): "/interface/l2tp-ether",
+    ("l2tp_server",): "/interface/l2tp-server",
+    ("lists",): "/interface/list",
+    ("interface_lists",): "/interface/list",
+    ("lte",): "/interface/lte",
+    ("macsec",): "/interface/macsec",
+    ("macvlan",): "/interface/macvlan",
+    ("mesh",): "/interface/mesh",
+    ("ovpn_client",): "/interface/ovpn-client",
+    ("ovpn_server",): "/interface/ovpn-server",
+    ("ppp_client",): "/interface/ppp-client",
+    ("ppp_server",): "/interface/ppp-server",
+    ("pppoe_client",): "/interface/pppoe-client",
+    ("pppoe_server",): "/interface/pppoe-server",
+    ("pptp_client",): "/interface/pptp-client",
+    ("pptp_server",): "/interface/pptp-server",
+    ("sstp_client",): "/interface/sstp-client",
+    ("sstp_server",): "/interface/sstp-server",
+    ("veth",): "/interface/veth",
+    ("vlan",): "/interface/vlan",
+    ("vpls",): "/interface/vpls",
+    ("vrrp",): "/interface/vrrp",
+    ("vxlan",): "/interface/vxlan",
+    ("wifi",): "/interface/wifi",
+    ("wireguard",): "/interface/wireguard",
+    ("wireless",): "/interface/wireless",
+    ("wireless", "registration_table"): "/interface/wireless/registration-table",
+}
+
+INTERFACE_COMMANDS = {
+    ("blink",): "/interface/blink",
+    ("comment",): "/interface/comment",
+    ("edit",): "/interface/edit",
+    ("export",): "/interface/export",
+    ("find",): "/interface/find",
+    ("monitor_traffic",): "/interface/monitor-traffic",
+    ("print",): "/interface/print",
+    ("reset",): "/interface/reset",
+    ("reset_counters",): "/interface/reset-counters",
+    ("set",): "/interface/set",
+}
+
+
+def _interface_endpoint_path(operation: Operation) -> str | None:
+    if operation.namespace != "network":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "interfaces":
+        return None
+    return INTERFACE_ENDPOINTS.get(operation.resource_path[1:])
+
+
+def _interface_command_path(operation: Operation) -> str | None:
+    if operation.namespace != "network" or operation.action != "run":
+        return None
+    if not operation.resource_path or operation.resource_path[0] != "interfaces":
+        return None
+
+    command = operation.resource_path[1:]
+    if command in INTERFACE_COMMANDS:
+        return INTERFACE_COMMANDS[command]
+    if len(command) < 2:
+        return None
+
+    endpoint = INTERFACE_ENDPOINTS.get(command[:-1])
+    command_name = command[-1:]
+    command_path = INTERFACE_COMMANDS.get(command_name)
+    if endpoint and command_path:
+        return f"{endpoint}/{command_path.rsplit('/', 1)[-1]}"
+    return None
+
+
+def _plan_interface_endpoint(operation: Operation, path: str) -> RouterOSPlan:
+    if operation.action == "list":
+        return _get(operation, path, _filters(operation))
+    if operation.action == "get":
+        return _get_by_id_or_match(operation, path)
+    if operation.action == "create":
+        body = _interface_body(operation)
+        if not body:
+            return _unsupported(operation, "interface create requires data params")
+        return _write(operation, "PUT", path, body)
+    if operation.action == "update":
+        body = _interface_body(operation)
+        if not body:
+            return _unsupported(operation, "interface update requires data params")
+        return _update_by_id_or_match(operation, path, body)
+    if operation.action == "delete":
+        return _delete_by_id_or_match(operation, path)
+    if operation.action in {"enable", "disable"}:
+        return _toggle_by_id_or_match(
+            operation,
+            path,
+            disabled=operation.action == "disable",
+        )
+    return _unsupported(
+        operation,
+        f"interface endpoint does not support action {operation.action!r}",
+    )
+
+
 ROUTE_KEY_MAP = {
     "dst": "dst-address",
     "dst_address": "dst-address",
@@ -675,6 +1116,158 @@ VLAN_KEY_MAP = {
     "reply_only": "reply-only",
 }
 
+IP_KEY_MAP = {
+    **ROUTE_KEY_MAP,
+    **FIREWALL_RULE_KEY_MAP,
+    "add_default_route": "add-default-route",
+    "address": "address",
+    "allow_remote_requests": "allow-remote-requests",
+    "cache_max_ttl": "cache-max-ttl",
+    "cache_size": "cache-size",
+    "dhcp_options": "dhcp-options",
+    "disabled": "disabled",
+    "dns_servers": "dns-servers",
+    "gateway": "gateway",
+    "interface": "interface",
+    "lease_time": "lease-time",
+    "local_address": "local-address",
+    "mac_address": "mac-address",
+    "max_udp_packet_size": "max-udp-packet-size",
+    "name": "name",
+    "query_server_timeout": "query-server-timeout",
+    "query_total_timeout": "query-total-timeout",
+    "remote_address": "remote-address",
+    "server_address": "server-address",
+    "use_peer_dns": "use-peer-dns",
+    "use_peer_ntp": "use-peer-ntp",
+}
+
+ROUTING_KEY_MAP = {
+    **ROUTE_KEY_MAP,
+    "address_families": "address-families",
+    "as": "as",
+    "bgp_as_path": "bgp-as-path",
+    "chain": "chain",
+    "check_gateway": "check-gateway",
+    "comment": "comment",
+    "disabled": "disabled",
+    "distance": "distance",
+    "dst": "dst-address",
+    "dst_address": "dst-address",
+    "gateway": "gateway",
+    "in_filter": "in-filter",
+    "instance": "instance",
+    "local_address": "local-address",
+    "name": "name",
+    "out_filter": "out-filter",
+    "pref_src": "pref-src",
+    "remote_address": "remote-address",
+    "routing_table": "routing-table",
+    "router_id": "router-id",
+    "scope": "scope",
+    "suppress_hw_offload": "suppress-hw-offload",
+    "table": "routing-table",
+    "target_scope": "target-scope",
+    "template": "template",
+    "vrf_interface": "vrf-interface",
+}
+
+RADIUS_KEY_MAP = {
+    "accounting_backup": "accounting-backup",
+    "accounting_port": "accounting-port",
+    "address": "address",
+    "authentication_port": "authentication-port",
+    "called_id": "called-id",
+    "certificate": "certificate",
+    "comment": "comment",
+    "disabled": "disabled",
+    "domain": "domain",
+    "protocol": "protocol",
+    "realm": "realm",
+    "secret": "secret",
+    "service": "service",
+    "src": "src-address",
+    "src_address": "src-address",
+    "timeout": "timeout",
+    "vrf": "vrf",
+}
+
+PPP_KEY_MAP = {
+    "address_list": "address-list",
+    "allow": "allow",
+    "change_tcp_mss": "change-tcp-mss",
+    "comment": "comment",
+    "copy_from": "copy-from",
+    "default_profile": "default-profile",
+    "disabled": "disabled",
+    "dns_server": "dns-server",
+    "encoding": "encoding",
+    "idle_timeout": "idle-timeout",
+    "incoming_filter": "incoming-filter",
+    "insert_queue_before": "insert-queue-before",
+    "interface": "interface",
+    "keepalive_timeout": "keepalive-timeout",
+    "limits_bytes_in": "limits-bytes-in",
+    "limits_bytes_out": "limits-bytes-out",
+    "local_address": "local-address",
+    "name": "name",
+    "only_one": "only-one",
+    "outgoing_filter": "outgoing-filter",
+    "parent_queue": "parent-queue",
+    "password": "password",
+    "profile": "profile",
+    "rate_limit": "rate-limit",
+    "remote_address": "remote-address",
+    "remote_ipv6_prefix_pool": "remote-ipv6-prefix-pool",
+    "routes": "routes",
+    "secret": "secret",
+    "service": "service",
+    "session_timeout": "session-timeout",
+    "use_compression": "use-compression",
+    "use_encryption": "use-encryption",
+    "use_ipv6": "use-ipv6",
+    "use_mpls": "use-mpls",
+    "use_upnp": "use-upnp",
+    "wins_server": "wins-server",
+}
+
+INTERFACE_KEY_MAP = {
+    **BRIDGE_PORT_KEY_MAP,
+    **VLAN_KEY_MAP,
+    "actual_mtu": "actual-mtu",
+    "allow_fast_path": "allow-fast-path",
+    "arp_timeout": "arp-timeout",
+    "auto_negotiation": "auto-negotiation",
+    "bridge": "bridge",
+    "comment": "comment",
+    "default_name": "default-name",
+    "disabled": "disabled",
+    "interface": "interface",
+    "keepalive_timeout": "keepalive-timeout",
+    "l2mtu": "l2mtu",
+    "mac_address": "mac-address",
+    "master_port": "master-port",
+    "max_l2mtu": "max-l2mtu",
+    "mtu": "mtu",
+    "name": "name",
+    "running": "running",
+    "rx_byte": "rx-byte",
+    "rx_packet": "rx-packet",
+    "tx_byte": "tx-byte",
+    "tx_packet": "tx-packet",
+    "vlan_id": "vlan-id",
+}
+
+FILTER_KEY_MAP = {
+    **ROUTE_KEY_MAP,
+    **FIREWALL_RULE_KEY_MAP,
+    **IP_KEY_MAP,
+    **ROUTING_KEY_MAP,
+    **RADIUS_KEY_MAP,
+    **PPP_KEY_MAP,
+    **INTERFACE_KEY_MAP,
+}
+
 
 def _get(
     operation: Operation,
@@ -698,6 +1291,17 @@ def _get(
     )
 
 
+def _get_by_id_or_match(operation: Operation, path: str) -> RouterOSPlan:
+    resource_id = operation.params.get("id")
+    if isinstance(resource_id, str) and resource_id:
+        return _get(operation, f"{path}/{resource_id}")
+
+    filters = _resource_filters(operation)
+    if not filters:
+        return _unsupported(operation, "get requires id, name, or match params")
+    return _get(operation, path, filters)
+
+
 def _write(
     operation: Operation,
     method: str,
@@ -719,6 +1323,18 @@ def _write(
         operation=operation.name,
         capability="supported",
         steps=(RouterOSPlanStep(operation.action, method, path, body=body),),
+    )
+
+
+def _run(
+    operation: Operation,
+    path: str,
+    body: dict[str, Any],
+) -> RouterOSPlan:
+    return RouterOSPlan(
+        operation=operation.name,
+        capability="supported",
+        steps=(RouterOSPlanStep(operation.action, "POST", path, body=body),),
     )
 
 
@@ -746,10 +1362,7 @@ def _toggle_by_id_or_match(
             {"disabled": disabled},
         )
 
-    filters = _filters(operation)
-    name = operation.params.get("name")
-    if isinstance(name, str):
-        filters["name"] = name
+    filters = _resource_filters(operation)
     if not filters:
         return _unsupported(
             operation,
@@ -791,10 +1404,7 @@ def _update_by_id_or_match(
     if isinstance(resource_id, str) and resource_id:
         return _write(operation, "PATCH", f"{path}/{resource_id}", body)
 
-    filters = _filters(operation)
-    name = operation.params.get("name")
-    if isinstance(name, str):
-        filters["name"] = name
+    filters = _resource_filters(operation)
     if not filters:
         return _unsupported(operation, "update requires id, name, or match params")
 
@@ -814,6 +1424,33 @@ def _update_by_id_or_match(
     )
 
 
+def _delete_by_id_or_match(
+    operation: Operation,
+    path: str,
+) -> RouterOSPlan:
+    resource_id = operation.params.get("id")
+    if isinstance(resource_id, str) and resource_id:
+        return RouterOSPlan(
+            operation=operation.name,
+            capability="supported",
+            steps=(RouterOSPlanStep(operation.action, "DELETE", f"{path}/{resource_id}"),),
+        )
+
+    filters = _resource_filters(operation)
+    if not filters:
+        return _unsupported(operation, "delete requires id, name, or match params")
+
+    return RouterOSPlan(
+        operation=operation.name,
+        capability="supported_via_fallback",
+        steps=(
+            RouterOSPlanStep("lookup", "GET", path, params=filters),
+            RouterOSPlanStep(operation.action, "DELETE", f"{path}/<resolved-id>"),
+        ),
+        warnings=("operation requires resolving a RouterOS internal id before delete",),
+    )
+
+
 def _filters(operation: Operation) -> dict[str, Any]:
     """
 
@@ -825,8 +1462,16 @@ def _filters(operation: Operation) -> dict[str, Any]:
     """
     match = operation.params.get("match", {})
     if isinstance(match, dict):
-        return _translate_keys(match, {**ROUTE_KEY_MAP, **FIREWALL_RULE_KEY_MAP})
+        return _translate_keys(match, FILTER_KEY_MAP)
     return {}
+
+
+def _resource_filters(operation: Operation) -> dict[str, Any]:
+    filters = _filters(operation)
+    name = operation.params.get("name")
+    if isinstance(name, str) and name:
+        filters["name"] = name
+    return filters
 
 
 def _body_map(operation: Operation, *keys: str) -> dict[str, Any]:
@@ -844,6 +1489,51 @@ def _body_map(operation: Operation, *keys: str) -> dict[str, Any]:
         if isinstance(value, dict):
             return value
     return {}
+
+
+def _interface_body(operation: Operation) -> dict[str, Any]:
+    body = _body_map(operation, "data", "interface")
+    if not body and operation.resource_path:
+        body = _body_map(operation, operation.resource_path[-1])
+    return _translate_keys(body, INTERFACE_KEY_MAP)
+
+
+def _ip_body(operation: Operation) -> dict[str, Any]:
+    body = _body_map(operation, "data", "ip")
+    if not body and operation.resource_path:
+        body = _body_map(operation, operation.resource_path[-1])
+    return _translate_keys(body, IP_KEY_MAP)
+
+
+def _routing_body(operation: Operation) -> dict[str, Any]:
+    body = _body_map(operation, "data", "routing")
+    if not body and operation.resource_path:
+        body = _body_map(operation, operation.resource_path[-1])
+    return _translate_keys(body, ROUTING_KEY_MAP)
+
+
+def _radius_body(operation: Operation) -> dict[str, Any]:
+    body = _body_map(operation, "data", "radius")
+    if not body and operation.resource_path:
+        body = _body_map(operation, operation.resource_path[-1])
+    return _translate_keys(body, RADIUS_KEY_MAP)
+
+
+def _ppp_body(operation: Operation) -> dict[str, Any]:
+    body = _body_map(operation, "data", "ppp")
+    if not body and operation.resource_path:
+        body = _body_map(operation, operation.resource_path[-1])
+    return _translate_keys(body, PPP_KEY_MAP)
+
+
+def _command_body(operation: Operation) -> dict[str, Any]:
+    body = _body_map(operation, "data", "params", "command")
+    direct = {
+        key: value
+        for key, value in operation.params.items()
+        if key not in {"target", "data", "params", "command"}
+    }
+    return _translate_keys({**body, **direct}, INTERFACE_KEY_MAP)
 
 
 def _translate_keys(

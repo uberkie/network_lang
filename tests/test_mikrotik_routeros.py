@@ -224,6 +224,617 @@ class RouterOSPlanTests(unittest.TestCase):
         self.assertEqual(plan.steps[0].path, "/interface/*1")
         self.assertEqual(plan.steps[0].body, {"disabled": False})
 
+    def test_interface_endpoint_family_maps_to_rest_paths(self):
+        endpoints = {
+            "six_to_four": "/interface/6to4",
+            "bonding": "/interface/bonding",
+            "bridge": "/interface/bridge",
+            "detect_internet": "/interface/detect-internet",
+            "dot1x": "/interface/dot1x",
+            "eoip": "/interface/eoip",
+            "eoipv6": "/interface/eoipv6",
+            "ethernet": "/interface/ethernet",
+            "gre": "/interface/gre",
+            "gre6": "/interface/gre6",
+            "ipip": "/interface/ipip",
+            "ipipv6": "/interface/ipipv6",
+            "l2tp_client": "/interface/l2tp-client",
+            "l2tp_ether": "/interface/l2tp-ether",
+            "l2tp_server": "/interface/l2tp-server",
+            "lists": "/interface/list",
+            "lte": "/interface/lte",
+            "macsec": "/interface/macsec",
+            "macvlan": "/interface/macvlan",
+            "mesh": "/interface/mesh",
+            "ovpn_client": "/interface/ovpn-client",
+            "ovpn_server": "/interface/ovpn-server",
+            "ppp_client": "/interface/ppp-client",
+            "ppp_server": "/interface/ppp-server",
+            "pppoe_client": "/interface/pppoe-client",
+            "pppoe_server": "/interface/pppoe-server",
+            "pptp_client": "/interface/pptp-client",
+            "pptp_server": "/interface/pptp-server",
+            "sstp_client": "/interface/sstp-client",
+            "sstp_server": "/interface/sstp-server",
+            "veth": "/interface/veth",
+            "vlan": "/interface/vlan",
+            "vpls": "/interface/vpls",
+            "vrrp": "/interface/vrrp",
+            "vxlan": "/interface/vxlan",
+            "wifi": "/interface/wifi",
+            "wireguard": "/interface/wireguard",
+            "wireless": "/interface/wireless",
+        }
+
+        for operation_segment, path in endpoints.items():
+            with self.subTest(operation_segment=operation_segment):
+                operation = build_operation(
+                    f"network.interfaces.{operation_segment}.list",
+                    target="router-01",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "GET")
+                self.assertEqual(plan.steps[0].path, path)
+
+    def test_interface_endpoint_create_update_delete_and_toggle_are_generic(self):
+        create = plan_routeros_operation(
+            build_operation(
+                "network.interfaces.vxlan.create",
+                target="router-01",
+                data={"name": "vxlan10", "vni": 10, "allow_fast_path": True},
+            )
+        )
+        update = plan_routeros_operation(
+            build_operation(
+                "network.interfaces.ethernet.update",
+                target="router-01",
+                name="ether1",
+                data={"comment": "uplink", "auto_negotiation": False},
+            )
+        )
+        delete = plan_routeros_operation(
+            build_operation(
+                "network.interfaces.macvlan.delete",
+                target="router-01",
+                name="macvlan-temp",
+            )
+        )
+        disable = plan_routeros_operation(
+            build_operation(
+                "network.interfaces.wireguard.disable",
+                target="router-01",
+                id="*7",
+            )
+        )
+
+        self.assertEqual(create.steps[0].method, "PUT")
+        self.assertEqual(create.steps[0].path, "/interface/vxlan")
+        self.assertEqual(
+            create.steps[0].body,
+            {"name": "vxlan10", "vni": 10, "allow-fast-path": True},
+        )
+        self.assertEqual(update.capability, "supported_via_fallback")
+        self.assertEqual(update.steps[0].path, "/interface/ethernet")
+        self.assertEqual(update.steps[0].params, {"name": "ether1"})
+        self.assertEqual(
+            update.steps[1].body,
+            {"comment": "uplink", "auto-negotiation": False},
+        )
+        self.assertEqual(delete.capability, "supported_via_fallback")
+        self.assertEqual([step.method for step in delete.steps], ["GET", "DELETE"])
+        self.assertEqual(delete.steps[0].path, "/interface/macvlan")
+        self.assertEqual(delete.steps[1].path, "/interface/macvlan/<resolved-id>")
+        self.assertEqual(disable.capability, "supported")
+        self.assertEqual(disable.steps[0].method, "PATCH")
+        self.assertEqual(disable.steps[0].path, "/interface/wireguard/*7")
+        self.assertEqual(disable.steps[0].body, {"disabled": True})
+
+    def test_interface_command_run_maps_to_post_path(self):
+        operations = {
+            "network.interfaces.blink.run": "/interface/blink",
+            "network.interfaces.comment.run": "/interface/comment",
+            "network.interfaces.edit.run": "/interface/edit",
+            "network.interfaces.export.run": "/interface/export",
+            "network.interfaces.find.run": "/interface/find",
+            "network.interfaces.monitor_traffic.run": "/interface/monitor-traffic",
+            "network.interfaces.print.run": "/interface/print",
+            "network.interfaces.reset.run": "/interface/reset",
+            "network.interfaces.reset_counters.run": "/interface/reset-counters",
+            "network.interfaces.set.run": "/interface/set",
+            "network.interfaces.ethernet.reset_counters.run": (
+                "/interface/ethernet/reset-counters"
+            ),
+        }
+
+        for operation_name, path in operations.items():
+            with self.subTest(operation_name=operation_name):
+                operation = build_operation(
+                    operation_name,
+                    target="router-01",
+                    name="ether1",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "POST")
+                self.assertEqual(plan.steps[0].path, path)
+                self.assertEqual(plan.steps[0].body, {"name": "ether1"})
+
+    def test_ip_endpoint_family_maps_to_rest_paths(self):
+        endpoints = {
+            "address": "/ip/address",
+            "arp": "/ip/arp",
+            "cloud": "/ip/cloud",
+            "dhcp_client": "/ip/dhcp-client",
+            "dhcp_relay": "/ip/dhcp-relay",
+            "dhcp_server": "/ip/dhcp-server",
+            "dns": "/ip/dns",
+            "firewall": "/ip/firewall",
+            "hotspot": "/ip/hotspot",
+            "ipsec": "/ip/ipsec",
+            "kid_control": "/ip/kid-control",
+            "media": "/ip/media",
+            "nat_pmp": "/ip/nat-pmp",
+            "neighbor": "/ip/neighbor",
+            "packing": "/ip/packing",
+            "pool": "/ip/pool",
+            "proxy": "/ip/proxy",
+            "route": "/ip/route",
+            "service": "/ip/service",
+            "settings": "/ip/settings",
+            "smb": "/ip/smb",
+            "socks": "/ip/socks",
+            "ssh": "/ip/ssh",
+            "tftp": "/ip/tftp",
+            "traffic_flow": "/ip/traffic-flow",
+            "upnp": "/ip/upnp",
+            "vrf": "/ip/vrf",
+        }
+
+        for operation_segment, path in endpoints.items():
+            with self.subTest(operation_segment=operation_segment):
+                operation = build_operation(
+                    f"network.ip.{operation_segment}.list",
+                    target="router-01",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "GET")
+                self.assertEqual(plan.steps[0].path, path)
+
+    def test_ip_endpoint_create_update_delete_and_toggle_are_generic(self):
+        create = plan_routeros_operation(
+            build_operation(
+                "network.ip.dhcp_client.create",
+                target="router-01",
+                data={
+                    "interface": "ether1",
+                    "add_default_route": True,
+                    "use_peer_dns": False,
+                },
+            )
+        )
+        update = plan_routeros_operation(
+            build_operation(
+                "network.ip.pool.update",
+                target="router-01",
+                name="customers",
+                data={"ranges": "10.20.30.2-10.20.30.254"},
+            )
+        )
+        delete = plan_routeros_operation(
+            build_operation(
+                "network.ip.hotspot.delete",
+                target="router-01",
+                name="hotspot1",
+            )
+        )
+        disable = plan_routeros_operation(
+            build_operation(
+                "network.ip.service.disable",
+                target="router-01",
+                id="*2",
+            )
+        )
+
+        self.assertEqual(create.steps[0].method, "PUT")
+        self.assertEqual(create.steps[0].path, "/ip/dhcp-client")
+        self.assertEqual(
+            create.steps[0].body,
+            {
+                "interface": "ether1",
+                "add-default-route": True,
+                "use-peer-dns": False,
+            },
+        )
+        self.assertEqual(update.capability, "supported_via_fallback")
+        self.assertEqual(update.steps[0].path, "/ip/pool")
+        self.assertEqual(update.steps[0].params, {"name": "customers"})
+        self.assertEqual(
+            update.steps[1].body,
+            {"ranges": "10.20.30.2-10.20.30.254"},
+        )
+        self.assertEqual(delete.capability, "supported_via_fallback")
+        self.assertEqual([step.method for step in delete.steps], ["GET", "DELETE"])
+        self.assertEqual(delete.steps[0].path, "/ip/hotspot")
+        self.assertEqual(delete.steps[1].path, "/ip/hotspot/<resolved-id>")
+        self.assertEqual(disable.capability, "supported")
+        self.assertEqual(disable.steps[0].method, "PATCH")
+        self.assertEqual(disable.steps[0].path, "/ip/service/*2")
+        self.assertEqual(disable.steps[0].body, {"disabled": True})
+
+    def test_ip_export_command_run_maps_to_post_path(self):
+        operation = build_operation(
+            "network.ip.export.run",
+            target="router-01",
+            file="ip-export",
+        )
+
+        plan = plan_routeros_operation(operation)
+
+        self.assertTrue(plan.supported)
+        self.assertEqual(plan.steps[0].method, "POST")
+        self.assertEqual(plan.steps[0].path, "/ip/export")
+        self.assertEqual(plan.steps[0].body, {"file": "ip-export"})
+
+    def test_routing_endpoint_family_maps_to_rest_paths(self):
+        endpoints = {
+            "bfd": "/routing/bfd",
+            "bgp": "/routing/bgp",
+            "fantasy": "/routing/fantasy",
+            "filter": "/routing/filter",
+            "gmp": "/routing/gmp",
+            "id": "/routing/id",
+            "igmp_proxy": "/routing/igmp-proxy",
+            "isis": "/routing/isis",
+            "nexthop": "/routing/nexthop",
+            "ospf": "/routing/ospf",
+            "pimsm": "/routing/pimsm",
+            "rip": "/routing/rip",
+            "route": "/routing/route",
+            "rpki": "/routing/rpki",
+            "rule": "/routing/rule",
+            "settings": "/routing/settings",
+            "stats": "/routing/stats",
+            "table": "/routing/table",
+        }
+
+        for operation_segment, path in endpoints.items():
+            with self.subTest(operation_segment=operation_segment):
+                operation = build_operation(
+                    f"network.routing.{operation_segment}.list",
+                    target="router-01",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "GET")
+                self.assertEqual(plan.steps[0].path, path)
+
+    def test_routing_endpoint_create_update_delete_and_toggle_are_generic(self):
+        create = plan_routeros_operation(
+            build_operation(
+                "network.routing.bgp.create",
+                target="router-01",
+                data={
+                    "name": "peer1",
+                    "remote_address": "192.0.2.1",
+                    "address_families": "ip",
+                },
+            )
+        )
+        update = plan_routeros_operation(
+            build_operation(
+                "network.routing.rule.update",
+                target="router-01",
+                name="prefer-main",
+                data={"routing_table": "main", "disabled": False},
+            )
+        )
+        delete = plan_routeros_operation(
+            build_operation(
+                "network.routing.table.delete",
+                target="router-01",
+                name="old-table",
+            )
+        )
+        disable = plan_routeros_operation(
+            build_operation(
+                "network.routing.ospf.disable",
+                target="router-01",
+                id="*5",
+            )
+        )
+
+        self.assertEqual(create.steps[0].method, "PUT")
+        self.assertEqual(create.steps[0].path, "/routing/bgp")
+        self.assertEqual(
+            create.steps[0].body,
+            {
+                "name": "peer1",
+                "remote-address": "192.0.2.1",
+                "address-families": "ip",
+            },
+        )
+        self.assertEqual(update.capability, "supported_via_fallback")
+        self.assertEqual(update.steps[0].path, "/routing/rule")
+        self.assertEqual(update.steps[0].params, {"name": "prefer-main"})
+        self.assertEqual(
+            update.steps[1].body,
+            {"routing-table": "main", "disabled": False},
+        )
+        self.assertEqual(delete.capability, "supported_via_fallback")
+        self.assertEqual([step.method for step in delete.steps], ["GET", "DELETE"])
+        self.assertEqual(delete.steps[0].path, "/routing/table")
+        self.assertEqual(delete.steps[1].path, "/routing/table/<resolved-id>")
+        self.assertEqual(disable.capability, "supported")
+        self.assertEqual(disable.steps[0].method, "PATCH")
+        self.assertEqual(disable.steps[0].path, "/routing/ospf/*5")
+        self.assertEqual(disable.steps[0].body, {"disabled": True})
+
+    def test_routing_command_run_maps_to_post_path(self):
+        operations = {
+            "network.routing.discourse.run": "/routing/discourse",
+            "network.routing.export.run": "/routing/export",
+            "network.routing.reinstall_fib.run": "/routing/reinstall-fib",
+        }
+
+        for operation_name, path in operations.items():
+            with self.subTest(operation_name=operation_name):
+                operation = build_operation(
+                    operation_name,
+                    target="router-01",
+                    file="routing-export",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "POST")
+                self.assertEqual(plan.steps[0].path, path)
+                self.assertEqual(plan.steps[0].body, {"file": "routing-export"})
+
+    def test_radius_endpoint_family_maps_to_rest_paths(self):
+        endpoints = {
+            "": "/radius",
+            "incoming": "/radius/incoming",
+        }
+
+        for operation_segment, path in endpoints.items():
+            with self.subTest(operation_segment=operation_segment):
+                operation_name = "network.radius.list"
+                if operation_segment:
+                    operation_name = f"network.radius.{operation_segment}.list"
+                operation = build_operation(operation_name, target="router-01")
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "GET")
+                self.assertEqual(plan.steps[0].path, path)
+
+    def test_radius_endpoint_create_update_delete_and_toggle_are_generic(self):
+        create = plan_routeros_operation(
+            build_operation(
+                "network.radius.create",
+                target="router-01",
+                data={
+                    "service": "ppp",
+                    "address": "192.0.2.10",
+                    "secret": "testing",
+                    "authentication_port": 1812,
+                    "accounting_port": 1813,
+                    "src_address": "192.0.2.1",
+                },
+            )
+        )
+        update = plan_routeros_operation(
+            build_operation(
+                "network.radius.incoming.update",
+                target="router-01",
+                id="*1",
+                incoming={"accept": True, "port": 3799},
+            )
+        )
+        delete = plan_routeros_operation(
+            build_operation(
+                "network.radius.delete",
+                target="router-01",
+                match={"address": "192.0.2.10", "service": "ppp"},
+            )
+        )
+        disable = plan_routeros_operation(
+            build_operation(
+                "network.radius.disable",
+                target="router-01",
+                id="*2",
+            )
+        )
+
+        self.assertEqual(create.steps[0].method, "PUT")
+        self.assertEqual(create.steps[0].path, "/radius")
+        self.assertEqual(
+            create.steps[0].body,
+            {
+                "service": "ppp",
+                "address": "192.0.2.10",
+                "secret": "testing",
+                "authentication-port": 1812,
+                "accounting-port": 1813,
+                "src-address": "192.0.2.1",
+            },
+        )
+        self.assertEqual(update.capability, "supported")
+        self.assertEqual(update.steps[0].method, "PATCH")
+        self.assertEqual(update.steps[0].path, "/radius/incoming/*1")
+        self.assertEqual(update.steps[0].body, {"accept": True, "port": 3799})
+        self.assertEqual(delete.capability, "supported_via_fallback")
+        self.assertEqual([step.method for step in delete.steps], ["GET", "DELETE"])
+        self.assertEqual(delete.steps[0].path, "/radius")
+        self.assertEqual(
+            delete.steps[0].params,
+            {"address": "192.0.2.10", "service": "ppp"},
+        )
+        self.assertEqual(delete.steps[1].path, "/radius/<resolved-id>")
+        self.assertEqual(disable.capability, "supported")
+        self.assertEqual(disable.steps[0].method, "PATCH")
+        self.assertEqual(disable.steps[0].path, "/radius/*2")
+        self.assertEqual(disable.steps[0].body, {"disabled": True})
+
+    def test_radius_command_run_maps_to_post_path(self):
+        operations = {
+            "network.radius.add.run": "/radius/add",
+            "network.radius.comment.run": "/radius/comment",
+            "network.radius.disable.run": "/radius/disable",
+            "network.radius.edit.run": "/radius/edit",
+            "network.radius.enable.run": "/radius/enable",
+            "network.radius.export.run": "/radius/export",
+            "network.radius.find.run": "/radius/find",
+            "network.radius.monitor.run": "/radius/monitor",
+            "network.radius.move.run": "/radius/move",
+            "network.radius.print.run": "/radius/print",
+            "network.radius.remove.run": "/radius/remove",
+            "network.radius.reset.run": "/radius/reset",
+            "network.radius.reset_counters.run": "/radius/reset-counters",
+            "network.radius.set.run": "/radius/set",
+            "network.radius.incoming.print.run": "/radius/incoming/print",
+            "network.radius.incoming.reset_counters.run": (
+                "/radius/incoming/reset-counters"
+            ),
+        }
+
+        for operation_name, path in operations.items():
+            with self.subTest(operation_name=operation_name):
+                operation = build_operation(
+                    operation_name,
+                    target="router-01",
+                    id="*1",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "POST")
+                self.assertEqual(plan.steps[0].path, path)
+                self.assertEqual(plan.steps[0].body, {"id": "*1"})
+
+    def test_ppp_endpoint_family_maps_to_rest_paths(self):
+        endpoints = {
+            "aaa": "/ppp/aaa",
+            "active": "/ppp/active",
+            "l2tp_secret": "/ppp/l2tp-secret",
+            "profile": "/ppp/profile",
+            "secret": "/ppp/secret",
+        }
+
+        for operation_segment, path in endpoints.items():
+            with self.subTest(operation_segment=operation_segment):
+                operation = build_operation(
+                    f"network.ppp.{operation_segment}.list",
+                    target="router-01",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "GET")
+                self.assertEqual(plan.steps[0].path, path)
+
+    def test_ppp_endpoint_create_update_delete_and_toggle_are_generic(self):
+        create = plan_routeros_operation(
+            build_operation(
+                "network.ppp.secret.create",
+                target="router-01",
+                data={
+                    "name": "customer0172",
+                    "password": "testing",
+                    "service": "pppoe",
+                    "profile": "customers",
+                    "local_address": "10.0.0.1",
+                    "remote_address": "10.0.0.172",
+                },
+            )
+        )
+        update = plan_routeros_operation(
+            build_operation(
+                "network.ppp.profile.update",
+                target="router-01",
+                name="customers",
+                profile={"rate_limit": "20M/20M", "use_encryption": "required"},
+            )
+        )
+        delete = plan_routeros_operation(
+            build_operation(
+                "network.ppp.l2tp_secret.delete",
+                target="router-01",
+                name="legacy-tunnel",
+            )
+        )
+        disable = plan_routeros_operation(
+            build_operation(
+                "network.ppp.secret.disable",
+                target="router-01",
+                id="*8",
+            )
+        )
+
+        self.assertEqual(create.steps[0].method, "PUT")
+        self.assertEqual(create.steps[0].path, "/ppp/secret")
+        self.assertEqual(
+            create.steps[0].body,
+            {
+                "name": "customer0172",
+                "password": "testing",
+                "service": "pppoe",
+                "profile": "customers",
+                "local-address": "10.0.0.1",
+                "remote-address": "10.0.0.172",
+            },
+        )
+        self.assertEqual(update.capability, "supported_via_fallback")
+        self.assertEqual(update.steps[0].path, "/ppp/profile")
+        self.assertEqual(update.steps[0].params, {"name": "customers"})
+        self.assertEqual(
+            update.steps[1].body,
+            {"rate-limit": "20M/20M", "use-encryption": "required"},
+        )
+        self.assertEqual(delete.capability, "supported_via_fallback")
+        self.assertEqual([step.method for step in delete.steps], ["GET", "DELETE"])
+        self.assertEqual(delete.steps[0].path, "/ppp/l2tp-secret")
+        self.assertEqual(delete.steps[1].path, "/ppp/l2tp-secret/<resolved-id>")
+        self.assertEqual(disable.capability, "supported")
+        self.assertEqual(disable.steps[0].method, "PATCH")
+        self.assertEqual(disable.steps[0].path, "/ppp/secret/*8")
+        self.assertEqual(disable.steps[0].body, {"disabled": True})
+
+    def test_ppp_export_command_run_maps_to_post_path(self):
+        operations = {
+            "network.ppp.export.run": "/ppp/export",
+            "network.ppp.secret.export.run": "/ppp/secret/export",
+        }
+
+        for operation_name, path in operations.items():
+            with self.subTest(operation_name=operation_name):
+                operation = build_operation(
+                    operation_name,
+                    target="router-01",
+                    file="ppp-export",
+                )
+
+                plan = plan_routeros_operation(operation)
+
+                self.assertTrue(plan.supported)
+                self.assertEqual(plan.steps[0].method, "POST")
+                self.assertEqual(plan.steps[0].path, path)
+                self.assertEqual(plan.steps[0].body, {"file": "ppp-export"})
+
     def test_vlan_create_maps_to_rest_path(self):
         operation = build_operation(
             "network.vlans.create",

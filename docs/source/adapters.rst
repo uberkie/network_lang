@@ -58,6 +58,84 @@ Supported RouterOS Mappings
    * - ``network.interfaces.enable``
      - ``/interface``
      - ``PATCH`` by ``id``, or lookup by ``name``/``match`` then patch
+   * - ``network.interfaces.<endpoint>.list``
+     - ``/interface/<endpoint>``
+     - Generic ``GET`` support for RouterOS interface submenus
+   * - ``network.interfaces.<endpoint>.create``
+     - ``/interface/<endpoint>``
+     - Generic ``PUT`` with ``data``, ``interface``, or endpoint-named body
+   * - ``network.interfaces.<endpoint>.update``
+     - ``/interface/<endpoint>``
+     - Generic ``PATCH`` by ``id``, or lookup by ``name``/``match`` then patch
+   * - ``network.interfaces.<endpoint>.delete``
+     - ``/interface/<endpoint>``
+     - Generic ``DELETE`` by ``id``, or lookup by ``name``/``match`` then delete
+   * - ``network.interfaces.<endpoint>.enable``, ``network.interfaces.<endpoint>.disable``
+     - ``/interface/<endpoint>``
+     - Generic ``PATCH`` of ``disabled`` by ``id``, or lookup then patch
+   * - ``network.ip.<endpoint>.list``
+     - ``/ip/<endpoint>``
+     - Generic ``GET`` support for RouterOS IP submenus
+   * - ``network.ip.<endpoint>.create``
+     - ``/ip/<endpoint>``
+     - Generic ``PUT`` with ``data``, ``ip``, or endpoint-named body
+   * - ``network.ip.<endpoint>.update``
+     - ``/ip/<endpoint>``
+     - Generic ``PATCH`` by ``id``, or lookup by ``name``/``match`` then patch
+   * - ``network.ip.<endpoint>.delete``
+     - ``/ip/<endpoint>``
+     - Generic ``DELETE`` by ``id``, or lookup by ``name``/``match`` then delete
+   * - ``network.ip.<endpoint>.enable``, ``network.ip.<endpoint>.disable``
+     - ``/ip/<endpoint>``
+     - Generic ``PATCH`` of ``disabled`` by ``id``, or lookup then patch
+   * - ``network.routing.<endpoint>.list``
+     - ``/routing/<endpoint>``
+     - Generic ``GET`` support for RouterOS routing submenus
+   * - ``network.routing.<endpoint>.create``
+     - ``/routing/<endpoint>``
+     - Generic ``PUT`` with ``data``, ``routing``, or endpoint-named body
+   * - ``network.routing.<endpoint>.update``
+     - ``/routing/<endpoint>``
+     - Generic ``PATCH`` by ``id``, or lookup by ``name``/``match`` then patch
+   * - ``network.routing.<endpoint>.delete``
+     - ``/routing/<endpoint>``
+     - Generic ``DELETE`` by ``id``, or lookup by ``name``/``match`` then delete
+   * - ``network.routing.<endpoint>.enable``, ``network.routing.<endpoint>.disable``
+     - ``/routing/<endpoint>``
+     - Generic ``PATCH`` of ``disabled`` by ``id``, or lookup then patch
+   * - ``network.radius.list``
+     - ``/radius``
+     - Generic ``GET`` support for RouterOS RADIUS servers
+   * - ``network.radius.create``
+     - ``/radius``
+     - Generic ``PUT`` with ``data`` or ``radius`` body
+   * - ``network.radius.update``
+     - ``/radius``
+     - Generic ``PATCH`` by ``id``, or lookup by ``name``/``match`` then patch
+   * - ``network.radius.delete``
+     - ``/radius``
+     - Generic ``DELETE`` by ``id``, or lookup by ``name``/``match`` then delete
+   * - ``network.radius.enable``, ``network.radius.disable``
+     - ``/radius``
+     - Generic ``PATCH`` of ``disabled`` by ``id``, or lookup then patch
+   * - ``network.radius.incoming.<action>``
+     - ``/radius/incoming``
+     - Generic ``list/get/create/update/delete/enable/disable`` support
+   * - ``network.ppp.<endpoint>.list``
+     - ``/ppp/<endpoint>``
+     - Generic ``GET`` support for RouterOS PPP submenus
+   * - ``network.ppp.<endpoint>.create``
+     - ``/ppp/<endpoint>``
+     - Generic ``PUT`` with ``data``, ``ppp``, or endpoint-named body
+   * - ``network.ppp.<endpoint>.update``
+     - ``/ppp/<endpoint>``
+     - Generic ``PATCH`` by ``id``, or lookup by ``name``/``match`` then patch
+   * - ``network.ppp.<endpoint>.delete``
+     - ``/ppp/<endpoint>``
+     - Generic ``DELETE`` by ``id``, or lookup by ``name``/``match`` then delete
+   * - ``network.ppp.<endpoint>.enable``, ``network.ppp.<endpoint>.disable``
+     - ``/ppp/<endpoint>``
+     - Generic ``PATCH`` of ``disabled`` by ``id``, or lookup then patch
    * - ``network.routes.list``
      - ``/ip/route``
      - ``GET`` with optional ``match`` filters
@@ -85,6 +163,246 @@ Supported RouterOS Mappings
    * - ``network.wireless.clients.list``
      - ``/interface/wireless/registration-table``
      - ``GET`` with optional ``match`` filters
+
+RouterOS Interface Endpoint Names
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+RouterOS interface submenus are available under ``network.interfaces``.
+Hyphenated RouterOS names use underscores in operation names. ``6to4`` is
+``six_to_four`` because operation segments cannot start with a number.
+The RouterOS ``/interface/list`` submenu is exposed as ``lists`` or
+``interface_lists`` to avoid colliding with the ``list`` action.
+
+.. code-block:: python
+
+   build_operation("network.interfaces.ethernet.list", target="edge-01")
+   build_operation(
+       "network.interfaces.pppoe_client.create",
+       target="edge-01",
+       data={"name": "pppoe-out1", "interface": "ether1"},
+   )
+   build_operation(
+       "network.interfaces.wireguard.disable",
+       target="edge-01",
+       name="wg-customers",
+   )
+   build_operation(
+       "network.interfaces.ethernet.reset_counters.run",
+       target="edge-01",
+       name="ether1",
+   )
+
+The first interface pass maps these submenus:
+
+.. code-block:: text
+
+   six_to_four        macsec           vxlan
+   bonding            macvlan          wifi
+   bridge             mesh             wireguard
+   detect_internet    ovpn_client      wireless
+   dot1x              ovpn_server
+   eoip               ppp_client
+   eoipv6             ppp_server
+   ethernet           pppoe_client
+   gre                pppoe_server
+   gre6               pptp_client
+   ipip               pptp_server
+   ipipv6             sstp_client
+   l2tp_client        sstp_server
+   l2tp_ether         veth
+   l2tp_server        vlan
+   lists              vpls
+   lte                vrrp
+
+RouterOS interface commands are represented with the existing ``run`` action:
+
+.. code-block:: text
+
+   network.interfaces.blink.run
+   network.interfaces.comment.run
+   network.interfaces.edit.run
+   network.interfaces.export.run
+   network.interfaces.find.run
+   network.interfaces.monitor_traffic.run
+   network.interfaces.print.run
+   network.interfaces.reset.run
+   network.interfaces.reset_counters.run
+   network.interfaces.set.run
+
+Commands can also be scoped below a submenu when RouterOS exposes that command
+there, for example ``network.interfaces.ethernet.reset_counters.run``.
+
+RouterOS IP Endpoint Names
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+RouterOS ``/ip`` submenus are available under ``network.ip``. Hyphenated
+RouterOS names use underscores in operation names.
+
+.. code-block:: python
+
+   build_operation("network.ip.address.list", target="edge-01")
+   build_operation(
+       "network.ip.dhcp_client.create",
+       target="edge-01",
+       data={"interface": "ether1", "add_default_route": True},
+   )
+   build_operation("network.ip.service.disable", target="edge-01", name="www")
+   build_operation("network.ip.export.run", target="edge-01", file="ip-export")
+
+The first IP pass maps these submenus:
+
+.. code-block:: text
+
+   address         firewall        packing      socks
+   arp             hotspot         pool         ssh
+   cloud           ipsec           proxy        tftp
+   dhcp_client     kid_control     route        traffic_flow
+   dhcp_relay      media           service      upnp
+   dhcp_server     nat_pmp         settings     vrf
+   dns             neighbor        smb
+
+RouterOS ``/ip export`` is represented with the existing ``run`` action:
+
+.. code-block:: text
+
+   network.ip.export.run
+
+RouterOS Routing Endpoint Names
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+RouterOS ``/routing`` submenus are available under ``network.routing``.
+Hyphenated RouterOS names use underscores in operation names.
+
+.. code-block:: python
+
+   build_operation("network.routing.table.list", target="edge-01")
+   build_operation(
+       "network.routing.bgp.create",
+       target="edge-01",
+       data={"name": "peer1", "remote_address": "192.0.2.1"},
+   )
+   build_operation("network.routing.ospf.disable", target="edge-01", name="ospf1")
+   build_operation("network.routing.reinstall_fib.run", target="edge-01")
+
+The first routing pass maps these submenus:
+
+.. code-block:: text
+
+   bfd         igmp_proxy     route
+   bgp         isis           rpki
+   fantasy     nexthop        rule
+   filter      ospf           settings
+   gmp         pimsm          stats
+   id          rip            table
+
+RouterOS routing commands are represented with the existing ``run`` action:
+
+.. code-block:: text
+
+   network.routing.discourse.run
+   network.routing.export.run
+   network.routing.reinstall_fib.run
+
+RouterOS Radius Endpoint Names
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+RouterOS ``/radius`` is available as ``network.radius``. The
+``/radius/incoming`` submenu is available as ``network.radius.incoming``.
+
+.. code-block:: python
+
+   build_operation(
+       "network.radius.create",
+       target="edge-01",
+       radius={
+           "service": "ppp",
+           "address": "192.0.2.10",
+           "secret": "shared-secret",
+           "authentication_port": 1812,
+           "accounting_port": 1813,
+       },
+   )
+   build_operation("network.radius.disable", target="edge-01", id="*2")
+   build_operation("network.radius.incoming.update", target="edge-01", id="*1", incoming={"accept": True})
+   build_operation("network.radius.export.run", target="edge-01")
+
+The first radius pass maps these endpoint resources:
+
+.. code-block:: text
+
+   network.radius
+   network.radius.incoming
+
+RouterOS radius commands are represented with the existing ``run`` action:
+
+.. code-block:: text
+
+   network.radius.add.run
+   network.radius.comment.run
+   network.radius.disable.run
+   network.radius.edit.run
+   network.radius.enable.run
+   network.radius.export.run
+   network.radius.find.run
+   network.radius.monitor.run
+   network.radius.move.run
+   network.radius.print.run
+   network.radius.remove.run
+   network.radius.reset.run
+   network.radius.reset_counters.run
+   network.radius.set.run
+
+Commands can also be scoped below ``incoming`` when RouterOS exposes that
+command there, for example ``network.radius.incoming.print.run``.
+
+RouterOS PPP Endpoint Names
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+RouterOS ``/ppp`` submenus are available under ``network.ppp``. Hyphenated
+RouterOS names use underscores in operation names, so ``/ppp/l2tp-secret`` is
+``network.ppp.l2tp_secret``.
+
+.. code-block:: python
+
+   build_operation("network.ppp.active.list", target="edge-01")
+   build_operation(
+       "network.ppp.secret.create",
+       target="edge-01",
+       ppp={
+           "name": "customer0172",
+           "password": "shared-secret",
+           "service": "pppoe",
+           "profile": "customers",
+           "local_address": "10.0.0.1",
+           "remote_address": "10.0.0.172",
+       },
+   )
+   build_operation(
+       "network.ppp.profile.update",
+       target="edge-01",
+       name="customers",
+       profile={"rate_limit": "20M/20M"},
+   )
+   build_operation("network.ppp.export.run", target="edge-01")
+
+The first PPP pass maps these submenus:
+
+.. code-block:: text
+
+   aaa
+   active
+   l2tp_secret
+   profile
+   secret
+
+RouterOS ``/ppp export`` is represented with the existing ``run`` action:
+
+.. code-block:: text
+
+   network.ppp.export.run
+
+Commands can also be scoped below a submenu when RouterOS exposes that command
+there, for example ``network.ppp.secret.export.run``.
 
 Unsupported operations return an :class:`network_lang.OperationResult` with
 ``ok=False``, ``capability="unsupported"``, and
@@ -155,6 +473,12 @@ RouterOS REST keys. Unknown keys are converted from underscores to hyphens.
      - ``out-interface``
    * - ``connection_state``
      - ``connection-state``
+   * - ``authentication_port``, ``accounting_port``
+     - ``authentication-port``, ``accounting-port``
+   * - ``local_address``, ``remote_address``
+     - ``local-address``, ``remote-address``
+   * - ``rate_limit``, ``use_encryption``
+     - ``rate-limit``, ``use-encryption``
 
 Normalizers
 ~~~~~~~~~~~
