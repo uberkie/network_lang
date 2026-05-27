@@ -252,3 +252,15 @@ target = resolve_flow_target("ip:10.20.30.45", flows)
 `resolve_flow_target()` returns the best matching observation with network
 device, interface, direction, and confidence.
 
+
+## Documentation
+
+- [Sphinx documentation index](docs/source/index.rst)
+- [Getting started](docs/getting-started.md)
+- [Operation model](docs/operations.md)
+- [Adapters](docs/adapters.md)
+- [Inventory and targets](docs/inventory.md)
+- [Topology, reconciliation, and preflight](docs/topology-preflight.md)
+- [Flow collector](docs/flowcollector.md)
+- [Syntax v0 reference](docs/syntax-v0.md)
+- [Example operations](examples/operations.uns)
