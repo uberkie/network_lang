@@ -416,14 +416,14 @@ Infrastructure observed:
 ## Documentation
 
 - [Sphinx documentation index](docs/source/index.rst)
-- [Getting started](docs/source/getting-started.md)
-- [Operation model](docs/source/operations.md)
-- [Adapters](docs/source/adapters.md)
-- [Inventory and targets](docs/source/inventory.md)
-- [Topology, reconciliation, and preflight](docs/source/topology-preflight.md)
-- [Flow collector](docs/source/flowcollector.md)
-- [Syntax v0 reference](docs/source/syntax-v0.md)
-- [Example operations](examples/operations.md)
+- [Getting started](docs/getting-started.md)
+- [Operation model](docs/operations.md)
+- [Adapters](docs/adapters.md)
+- [Inventory and targets](docs/inventory.md)
+- [Topology, reconciliation, and preflight](docs/topology-preflight.md)
+- [Flow collector](docs/flowcollector.md)
+- [Syntax v0 reference](docs/syntax-v0.md)
+- [Example operations](examples/operations.uns)
 
 Build the HTML docs with:
 
