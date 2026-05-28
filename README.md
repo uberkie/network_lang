@@ -1,4 +1,5 @@
-[ReadtheDocs]((https://uberkie.github.io/getting-started.html))
+
+[ReadTheDocs](https://example.com](https://uberkie.github.io/getting-started.html))
 
 # Unified Network Syntax
 
