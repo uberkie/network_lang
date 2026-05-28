@@ -9,7 +9,7 @@ from network_lang import (
     target_device,
 )
 from network_lang.result import OperationResult
-from network_lang.adapters import RouterOSExecutor
+from network_lang.adapters import RouterOSExecutor, UNMSExecutor
 
 
 class FakeExecutor:
@@ -73,6 +73,43 @@ class TargetResolutionTests(unittest.TestCase):
         self.assertEqual(device.url, "https://192.0.2.1/")
         self.assertEqual(device.vendor, "mikrotik")
         self.assertEqual(device.platform, "routeros")
+
+    def test_target_device_builds_unms_execution_context(self):
+        device = target_device(
+            "uisp",
+            inventory=[
+                {
+                    "name": "uisp",
+                    "url": "https://uisp.example.com/nms/",
+                    "vendor": "ubnt",
+                    "platform": "unms",
+                    "transport": "rest",
+                    "token": "secret-token",
+                    "secure": False,
+                }
+            ],
+        )
+
+        self.assertIsInstance(device, TargetDevice)
+        self.assertIsInstance(device.executor, UNMSExecutor)
+        self.assertEqual(device.name, "uisp")
+        self.assertEqual(device.url, "https://uisp.example.com/nms/")
+        self.assertEqual(device.vendor, "ubnt")
+        self.assertEqual(device.platform, "unms")
+
+    def test_unms_target_requires_api_token(self):
+        with self.assertRaisesRegex(TargetResolutionError, "API token"):
+            target_device(
+                "uisp",
+                inventory=[
+                    {
+                        "name": "uisp",
+                        "url": "https://uisp.example.com/nms/",
+                        "vendor": "ubnt",
+                        "platform": "unms",
+                    }
+                ],
+            )
 
     def test_target_device_builds_targeted_operation(self):
         device = TargetDevice(

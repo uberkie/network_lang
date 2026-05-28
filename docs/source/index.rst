@@ -17,6 +17,7 @@ What Works Today
 * Build operations from Python with fluent access or dotted names.
 * Validate namespaces, operation shape, core actions, and required targets.
 * Plan and execute selected MikroTik RouterOS REST operations.
+* Plan and execute UNMS/UISP controller API operations with token auth.
 * Plan selected Ubiquiti airOS operations without executing them.
 * Normalize RouterOS observations into inventory and topology records.
 * Reconcile expected devices or attachments against observed data.

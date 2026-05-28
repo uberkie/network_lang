@@ -28,7 +28,10 @@ Adapter-specific planning and execution helpers live under
    from network_lang.adapters import (
        RouterOSExecutor,
        RouterOSRestTransport,
+       UNMSExecutor,
+       UNMSRestTransport,
        plan_routeros_operation,
+       plan_unms_operation,
        plan_airos_operation,
    )
 
@@ -269,6 +272,27 @@ RouterOS Normalizers
 .. autofunction:: network_lang.adapters.routeros_bridge_hosts_to_attachments
 
 .. autofunction:: network_lang.adapters.routeros_bridge_ports_to_interface_states
+
+UNMS/UISP Adapter
+-----------------
+
+.. autofunction:: network_lang.adapters.plan_unms_operation
+
+.. autofunction:: network_lang.adapters.execute_unms_operation
+
+.. autoclass:: network_lang.adapters.UNMSExecutor
+   :members: execute, execute_plan
+
+.. autoclass:: network_lang.adapters.UNMSRestTransport
+   :members: request
+
+.. autoclass:: network_lang.adapters.UNMSEndpoints
+   :members: from_url, resource_url
+
+.. autoclass:: network_lang.adapters.UNMSPlan
+   :members: supported
+
+.. autoclass:: network_lang.adapters.UNMSPlanStep
 
 airOS Adapter
 -------------

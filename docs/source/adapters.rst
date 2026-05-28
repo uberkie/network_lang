@@ -519,6 +519,64 @@ normalized interface states, raw neighbor data, and raw bridge port data.
 ``preflight_routeros_operation()`` uses that snapshot to preflight risky
 interface operations.
 
+UNMS/UISP Controller REST
+-------------------------
+
+The UNMS/UISP adapter can execute controller API calls with token
+authentication. It follows the legacy UNMS plugin convention of sending
+``x-auth-token`` to ``/api/v2.1/``, and ``UNMSEndpoints.from_url()`` rewrites
+``/crm/`` URLs to ``/nms/``.
+
+.. code-block:: python
+
+   from network_lang import target_device
+
+   controller = target_device("uisp")
+   result = controller.execute(
+       controller.operation(
+           "network.controller.devices.list",
+           match={"site_id": "site-1"},
+       )
+   )
+
+Inventory records need a controller URL and token:
+
+.. code-block:: json
+
+   {
+       "name": "uisp",
+       "url": "https://uisp.example.com/nms/",
+       "vendor": "ubnt",
+       "platform": "unms",
+       "transport": "rest",
+       "token": "change-me",
+       "secure": false
+   }
+
+Supported Controller Mappings
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+
+   * - Operation shape
+     - API behavior
+   * - ``network.controller.<resource>.list``
+     - ``GET /<resource>`` with optional ``match``/``query`` params
+   * - ``network.controller.<resource>.get``
+     - ``GET /<resource>/<id>`` or filtered ``GET /<resource>``
+   * - ``network.controller.<resource>.create``
+     - ``POST /<resource>`` with ``data`` body
+   * - ``network.controller.<resource>.update``
+     - ``PATCH /<resource>/<id>`` with ``data`` body
+   * - ``network.controller.<resource>.delete``
+     - ``DELETE /<resource>/<id>`` with destructive warning
+   * - ``network.unms.list(endpoint="devices/firmwares")``
+     - ``GET /devices/firmwares``
+
+Underscores in operation path segments and parameter keys are converted to
+hyphens for controller paths and query/body keys.
+
 Ubiquiti airOS Plans
 --------------------
 

@@ -89,10 +89,22 @@ def target_device(
     )
 
     vendor = _normalized(record.get("vendor"), default="mikrotik")
-    platform = _normalized(record.get("platform") or record.get("os"), default="routeros")
+    platform = _normalized(
+        record.get("platform") or record.get("os"),
+        default=_default_platform(vendor),
+    )
     transport = _normalized(record.get("transport"), default="rest")
 
     if not _is_routeros(vendor, platform, transport):
+        if _is_unms(vendor, platform, transport):
+            return _unms_target_device(
+                record,
+                target,
+                vendor,
+                platform,
+                transport,
+                secure,
+            )
         raise TargetResolutionError(
             f"target {target!r} resolved to unsupported adapter "
             f"{vendor}/{platform}/{transport}"
@@ -295,6 +307,56 @@ def _routeros_target_device(
     )
 
 
+def _unms_target_device(
+    record: dict[str, Any],
+    requested_target: str,
+    vendor: str,
+    platform: str,
+    transport: str,
+    secure: bool | None,
+) -> TargetDevice:
+    from .adapters import UNMSEndpoints, UNMSExecutor, UNMSRestTransport
+
+    url = _string(record.get("url"))
+    if not url:
+        raise TargetResolutionError(f"target {requested_target!r} does not have a URL")
+
+    token = (
+        _string(record.get("token"))
+        or _string(record.get("api_token"))
+        or _string(record.get("unms_api_token"))
+        or _string(record.get("uisp_api_token"))
+        or _string(os.environ.get("UNMS_API_TOKEN"))
+        or _string(os.environ.get("UISP_API_TOKEN"))
+    )
+    if not token:
+        raise TargetResolutionError(
+            f"target {requested_target!r} does not have an API token"
+        )
+
+    api_version = (
+        _string(record.get("api_version"))
+        or _string(record.get("unms_api_version"))
+        or "v2.1"
+    )
+    default_verify = secure if secure is not None else False
+    verify_tls = _bool(
+        record.get("verify_tls"),
+        default=_bool(record.get("secure"), default=default_verify),
+    )
+    endpoints = UNMSEndpoints.from_url(url, api_version=api_version)
+    executor = UNMSExecutor(UNMSRestTransport(endpoints, token, verify=verify_tls))
+    return TargetDevice(
+        name=_string(record.get("name")) or requested_target,
+        url=url,
+        vendor=vendor,
+        platform=platform,
+        transport=transport,
+        executor=executor,
+        record=dict(record),
+    )
+
+
 def _target_device(
     target: TargetDevice | str,
     *,
@@ -377,6 +439,20 @@ def _is_routeros(vendor: str, platform: str, transport: str) -> bool:
     return transport == "rest" and (
         vendor in {"mikrotik", "routeros"} or platform == "routeros"
     )
+
+
+def _is_unms(vendor: str, platform: str, transport: str) -> bool:
+    if transport != "rest":
+        return False
+    if platform in {"unms", "uisp", "controller"}:
+        return True
+    return vendor in {"unms", "uisp"}
+
+
+def _default_platform(vendor: str) -> str:
+    if vendor in {"ubnt", "ubiquiti", "unms", "uisp"}:
+        return "unms"
+    return "routeros"
 
 
 def _normalized(value: Any, *, default: str) -> str:

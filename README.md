@@ -27,6 +27,7 @@ operator intent
   operation names.
 - Validate namespaces, operation shape, core actions, and required targets.
 - Plan and execute selected MikroTik RouterOS REST operations.
+- Plan and execute UNMS/UISP controller API operations with token auth.
 - Plan selected Ubiquiti airOS operations without executing them.
 - Normalize RouterOS neighbor, ARP, bridge host, and bridge port data into
   inventory and topology records.
@@ -285,6 +286,48 @@ the current working directory.
 
 Set `NETWORK_LANG_INVENTORY` or pass
 `inventory_path=...` to use another file.
+
+## UNMS/UISP Controller Execution
+
+Controller targets use the same `target_device()` inventory path as devices.
+The adapter follows the old UNMS plugin pattern of calling `/api/v2.1/` with an
+`x-auth-token` header, and it rewrites legacy `/crm/` controller URLs to `/nms/`.
+
+```json
+[
+    {
+        "id": "uisp",
+        "name": "uisp",
+        "url": "https://uisp.example.com/nms/",
+        "vendor": "ubnt",
+        "platform": "unms",
+        "transport": "rest",
+        "token": "change-me",
+        "secure": false
+    }
+]
+```
+
+```python
+from network_lang import target_device
+
+controller = target_device("uisp")
+result = controller.execute(
+    controller.operation(
+        "network.controller.devices.list",
+        match={"site_id": "site-1"},
+    )
+)
+
+if result.ok:
+    print(result.data)
+else:
+    print(result.error.message)
+```
+
+Use `network.controller.<endpoint>.list|get|create|update|delete` for normal
+controller resources. For an endpoint that does not fit the dotted resource
+path, use `network.unms.list(target="uisp", endpoint="devices/firmwares")`.
 
 ## Topology Preflight
 

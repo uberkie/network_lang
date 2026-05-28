@@ -26,6 +26,16 @@ from .ubnt_airos import (
     AirOSPlanStep,
     plan_airos_operation,
 )
+from .ubnt_unms import (
+    UNMSEndpoints,
+    UNMSExecutor,
+    UNMSPlan,
+    UNMSPlanStep,
+    UNMSRestTransport,
+    UNMSTransport,
+    execute_unms_operation,
+    plan_unms_operation,
+)
 
 __all__ = [
     "AirOSEndpoints",
@@ -33,13 +43,21 @@ __all__ = [
     "AirOSPlanStep",
     "RouterOSPlan",
     "RouterOSPlanStep",
+    "UNMSEndpoints",
+    "UNMSExecutor",
+    "UNMSPlan",
+    "UNMSPlanStep",
+    "UNMSRestTransport",
+    "UNMSTransport",
     "RouterOSExecutor",
     "RouterOSRestTransport",
     "RouterOSTopologySnapshot",
     "RouterOSTransport",
     "collect_routeros_topology",
+    "execute_unms_operation",
     "execute_routeros_operation",
     "plan_airos_operation",
+    "plan_unms_operation",
     "plan_routeros_operation",
     "preflight_routeros_operation",
     "routeros_default_graph_group_by",
