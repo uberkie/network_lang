@@ -1,8 +1,5 @@
-
-
-
 # Unified Network Syntax
-[ReadTheDocs](https://example.com](https://uberkie.github.io/getting-started.html))
+[ReadTheDocs](https://uberkie.github.io/getting-started.html))
 
 The engineer’s job is to solve network problems, not repeatedly rebuild fragile tooling around already-solved access patterns. Unified Network Syntax treats SSH, API, SNMP, NETCONF, flow samples, and parser fallbacks as adapter concerns, so the operator can focus on intent, reconciliation, and safe action.
 
