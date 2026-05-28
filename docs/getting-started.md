@@ -129,11 +129,11 @@ python3 -m unittest discover -s tests
 ## Documentation
 
 - [Sphinx documentation index](docs/source/index.rst)
-- [Getting started](docs/getting-started.md)
-- [Operation model](docs/operations.md)
-- [Adapters](docs/adapters.md)
-- [Inventory and targets](docs/inventory.md)
-- [Topology, reconciliation, and preflight](docs/topology-preflight.md)
-- [Flow collector](docs/flowcollector.md)
-- [Syntax v0 reference](docs/syntax-v0.md)
+- [Getting started](getting-started.md)
+- [Operation model](operations.md)
+- [Adapters](adapters.md)
+- [Inventory and targets](inventory.md)
+- [Topology, reconciliation, and preflight](topology-preflight.md)
+- [Flow collector](flowcollector.md)
+- [Syntax v0 reference](syntax-v0.md)
 - [Example operations](examples/operations.uns)
